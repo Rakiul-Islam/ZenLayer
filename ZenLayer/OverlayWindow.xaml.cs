@@ -53,7 +53,7 @@ namespace ZenLayer
             {
                 Interval = TimeSpan.FromSeconds(5)
             };
-            _hideTimer.Tick += (s, e) => HideOverlay();
+            _hideTimer.Tick += async (s, e) => await HideOverlay();
 
             // Load logo if provided
             LoadLogo();
@@ -117,16 +117,20 @@ namespace ZenLayer
                 var screenHeight = SystemParameters.PrimaryScreenHeight;
 
                 // Position central box at cursor (offset by half its size to center it)
-                double centralX = Math.Max(40, Math.Min(x - 40, screenWidth - 40));
-                double centralY = Math.Max(40, Math.Min(y - 40, screenHeight - 40));
+                double centralX = Math.Max(40, Math.Min(x - 40, screenWidth - 80));
+                double centralY = Math.Max(40, Math.Min(y - 40, screenHeight - 80));
 
                 Canvas.SetLeft(CentralBox, centralX);
                 Canvas.SetTop(CentralBox, centralY);
 
-                // Position buttons around the central box
+                // Position buttons around the central box in a circular pattern
                 // Grayscale button - top right
                 Canvas.SetLeft(GrayscaleButton, centralX + 60);
                 Canvas.SetTop(GrayscaleButton, centralY - 30);
+
+                // Screenshot button - right side
+                Canvas.SetLeft(ScreenshotButton, centralX + 70);
+                Canvas.SetTop(ScreenshotButton, centralY + 10);
 
                 // Close button - bottom left
                 Canvas.SetLeft(CloseButton, centralX - 40);
@@ -173,6 +177,10 @@ namespace ZenLayer
             var buttonScale = buttonTransform?.Children[0] as ScaleTransform;
             var buttonTranslate = buttonTransform?.Children[1] as TranslateTransform;
 
+            var screenshotTransform = ScreenshotButton.RenderTransform as TransformGroup;
+            var screenshotScale = screenshotTransform?.Children[0] as ScaleTransform;
+            var screenshotTranslate = screenshotTransform?.Children[1] as TranslateTransform;
+
             var closeTransform = CloseButton.RenderTransform as TransformGroup;
             var closeScale = closeTransform?.Children[0] as ScaleTransform;
             var closeTranslate = closeTransform?.Children[1] as TranslateTransform;
@@ -196,6 +204,7 @@ namespace ZenLayer
 
                 // Animate buttons coming out from center
                 var buttonDistance = 60.0; // Distance from center
+                var screenshotDistance = 70.0;
                 var closeDistance = 50.0;
 
                 // Animate grayscale button
@@ -229,8 +238,40 @@ namespace ZenLayer
                     GrayscaleButton.BeginAnimation(OpacityProperty, buttonOpacityAnim);
                 }
 
+                // Animate screenshot button with slight delay
+                await Task.Delay(25);
+
+                if (screenshotScale != null && screenshotTranslate != null)
+                {
+                    screenshotTranslate.X = -screenshotDistance;
+                    screenshotTranslate.Y = -10;
+
+                    var screenshotScaleAnim = new DoubleAnimation(0.1, 1.0, TimeSpan.FromMilliseconds(250))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var screenshotMoveXAnim = new DoubleAnimation(-screenshotDistance, 0, TimeSpan.FromMilliseconds(300))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var screenshotMoveYAnim = new DoubleAnimation(-10, 0, TimeSpan.FromMilliseconds(300))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var screenshotOpacityAnim = new DoubleAnimation(0, 1.0, TimeSpan.FromMilliseconds(250));
+
+                    screenshotScale.BeginAnimation(ScaleTransform.ScaleXProperty, screenshotScaleAnim);
+                    screenshotScale.BeginAnimation(ScaleTransform.ScaleYProperty, screenshotScaleAnim);
+                    screenshotTranslate.BeginAnimation(TranslateTransform.XProperty, screenshotMoveXAnim);
+                    screenshotTranslate.BeginAnimation(TranslateTransform.YProperty, screenshotMoveYAnim);
+                    ScreenshotButton.BeginAnimation(OpacityProperty, screenshotOpacityAnim);
+                }
+
                 // Animate close button with slight delay
-                await Task.Delay(50);
+                await Task.Delay(25);
 
                 if (closeScale != null && closeTranslate != null)
                 {
@@ -281,6 +322,10 @@ namespace ZenLayer
             var buttonScale = buttonTransform?.Children[0] as ScaleTransform;
             var buttonTranslate = buttonTransform?.Children[1] as TranslateTransform;
 
+            var screenshotTransform = ScreenshotButton.RenderTransform as TransformGroup;
+            var screenshotScale = screenshotTransform?.Children[0] as ScaleTransform;
+            var screenshotTranslate = screenshotTransform?.Children[1] as TranslateTransform;
+
             var closeTransform = CloseButton.RenderTransform as TransformGroup;
             var closeScale = closeTransform?.Children[0] as ScaleTransform;
             var closeTranslate = closeTransform?.Children[1] as TranslateTransform;
@@ -301,6 +346,20 @@ namespace ZenLayer
                 buttonTranslate.BeginAnimation(TranslateTransform.XProperty, buttonMoveXAnim);
                 buttonTranslate.BeginAnimation(TranslateTransform.YProperty, buttonMoveYAnim);
                 GrayscaleButton.BeginAnimation(OpacityProperty, buttonOpacityAnim);
+            }
+
+            if (screenshotScale != null && screenshotTranslate != null)
+            {
+                var screenshotScaleAnim = new DoubleAnimation(1.0, 0.1, TimeSpan.FromMilliseconds(200));
+                var screenshotMoveXAnim = new DoubleAnimation(0, -70, TimeSpan.FromMilliseconds(200));
+                var screenshotMoveYAnim = new DoubleAnimation(0, -10, TimeSpan.FromMilliseconds(200));
+                var screenshotOpacityAnim = new DoubleAnimation(1.0, 0, TimeSpan.FromMilliseconds(200));
+
+                screenshotScale.BeginAnimation(ScaleTransform.ScaleXProperty, screenshotScaleAnim);
+                screenshotScale.BeginAnimation(ScaleTransform.ScaleYProperty, screenshotScaleAnim);
+                screenshotTranslate.BeginAnimation(TranslateTransform.XProperty, screenshotMoveXAnim);
+                screenshotTranslate.BeginAnimation(TranslateTransform.YProperty, screenshotMoveYAnim);
+                ScreenshotButton.BeginAnimation(OpacityProperty, screenshotOpacityAnim);
             }
 
             if (closeScale != null && closeTranslate != null)
@@ -355,6 +414,27 @@ namespace ZenLayer
             }
         }
 
+        private async void ScreenshotButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Hide this overlay first
+                await HideOverlay();
+
+                // Small delay to ensure overlay is hidden
+                await Task.Delay(100);
+
+                // Open screenshot selection window
+                var screenshotWindow = new ScreenshotWindow();
+                screenshotWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to open screenshot tool: {ex.Message}",
+                    "Screenshot Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             await HideOverlay();
@@ -367,9 +447,13 @@ namespace ZenLayer
 
             var centralBounds = new Rect(Canvas.GetLeft(CentralBox), Canvas.GetTop(CentralBox), CentralBox.Width, CentralBox.Height);
             var buttonBounds = new Rect(Canvas.GetLeft(GrayscaleButton), Canvas.GetTop(GrayscaleButton), GrayscaleButton.Width, GrayscaleButton.Height);
+            var screenshotBounds = new Rect(Canvas.GetLeft(ScreenshotButton), Canvas.GetTop(ScreenshotButton), ScreenshotButton.Width, ScreenshotButton.Height);
             var closeBounds = new Rect(Canvas.GetLeft(CloseButton), Canvas.GetTop(CloseButton), CloseButton.Width, CloseButton.Height);
 
-            if (!centralBounds.Contains(clickPoint) && !buttonBounds.Contains(clickPoint) && !closeBounds.Contains(clickPoint))
+            if (!centralBounds.Contains(clickPoint) &&
+                !buttonBounds.Contains(clickPoint) &&
+                !screenshotBounds.Contains(clickPoint) &&
+                !closeBounds.Contains(clickPoint))
             {
                 await HideOverlay();
             }
