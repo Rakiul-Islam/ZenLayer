@@ -1,0 +1,198 @@
+﻿<Window x:Class="ZenLayer.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Overlay" 
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Topmost="True"
+        ShowInTaskbar="False"
+        Background="Transparent"
+        WindowState="Maximized"
+        ResizeMode="NoResize"
+        MouseDown="Window_MouseDown">
+
+    <Grid Name="MainGrid">
+        <Canvas Name="ButtonContainer" Background="Transparent">
+            <!-- Central Circular Logo Box -->
+            <Border Name="CentralBox" 
+                    Width="80" 
+                    Height="80"
+                    CornerRadius="40"
+                    Background="#2C3E50"
+                    BorderBrush="#34495E"
+                    BorderThickness="3"
+                    Opacity="0"
+                    RenderTransformOrigin="0.5,0.5">
+
+                <Border.Effect>
+                    <DropShadowEffect Color="Black" BlurRadius="15" ShadowDepth="5" Opacity="0.4"/>
+                </Border.Effect>
+
+                <Border.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform x:Name="CentralBoxScale" ScaleX="0.1" ScaleY="0.1"/>
+                    </TransformGroup>
+                </Border.RenderTransform>
+
+                <Grid>
+                    <!-- Logo Image (will be set programmatically) -->
+                    <Image Name="LogoImage" 
+                           Width="40" 
+                           Height="40"
+                           Stretch="Uniform"
+                           RenderOptions.BitmapScalingMode="HighQuality"/>
+
+                    <!-- Fallback icon if no logo is provided -->
+                    <TextBlock Name="FallbackIcon"
+                               Text="⚙"
+                               FontSize="24"
+                               Foreground="White"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               Visibility="Collapsed"/>
+                </Grid>
+            </Border>
+
+            <!-- Grayscale Toggle Button -->
+            <Button Name="GrayscaleButton" 
+                    Width="60" 
+                    Height="60"
+                    Click="GrayscaleButton_Click"
+                    Cursor="Hand"
+                    RenderTransformOrigin="0.5,0.5"
+                    Opacity="0"
+                    Background="Transparent"
+                    BorderThickness="0">
+
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <!-- Drop Shadow -->
+                            <Ellipse Fill="Black" 
+                                     Opacity="0.3" 
+                                     Margin="3,3,0,0"/>
+
+                            <!-- Main Button Background -->
+                            <Ellipse Fill="#3498DB" 
+                                     Stroke="#2980B9" 
+                                     StrokeThickness="2"/>
+
+                            <!-- Highlight for hover effect -->
+                            <Ellipse Name="HighlightEllipse" 
+                                     Fill="White" 
+                                     Opacity="0"/>
+
+                            <!-- Content -->
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+
+                            <!-- Focus/Selection indicator (hidden) -->
+                            <Rectangle Fill="Transparent" 
+                                       Stroke="Transparent" 
+                                       StrokeThickness="0"/>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="HighlightEllipse" Property="Opacity" Value="0.1"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="White" BlurRadius="10" ShadowDepth="0" Opacity="0.4"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="HighlightEllipse" Property="Opacity" Value="0.2"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="Effect" Value="{x:Null}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </Button.Style>
+
+                <Button.Content>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="⚫" 
+                                  FontSize="16" 
+                                  Foreground="White" 
+                                  HorizontalAlignment="Center"
+                                  Margin="0,0,0,2"/>
+                        <TextBlock Text="Gray" 
+                                  FontSize="9" 
+                                  Foreground="White" 
+                                  HorizontalAlignment="Center"
+                                  FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Button.Content>
+
+                <Button.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform x:Name="ButtonScale" ScaleX="0.1" ScaleY="0.1"/>
+                        <TranslateTransform x:Name="ButtonTranslate" X="0" Y="0"/>
+                    </TransformGroup>
+                </Button.RenderTransform>
+            </Button>
+
+            <!-- Additional buttons can be added here -->
+            <!-- Example: Close Button -->
+            <Button Name="CloseButton" 
+                    Width="50" 
+                    Height="50"
+                    Click="CloseButton_Click"
+                    Cursor="Hand"
+                    RenderTransformOrigin="0.5,0.5"
+                    Opacity="0"
+                    Background="Transparent"
+                    BorderThickness="0">
+
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Ellipse Fill="Black" Opacity="0.3" Margin="2,2,0,0"/>
+                            <Ellipse Fill="#E74C3C" Stroke="#C0392B" StrokeThickness="2"/>
+                            <Ellipse Name="CloseHighlight" Fill="White" Opacity="0"/>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="CloseHighlight" Property="Opacity" Value="0.1"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="White" BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                    </Style>
+                </Button.Style>
+
+                <Button.Content>
+                    <TextBlock Text="✕" FontSize="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Button.Content>
+
+                <Button.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform x:Name="CloseButtonScale" ScaleX="0.1" ScaleY="0.1"/>
+                        <TranslateTransform x:Name="CloseButtonTranslate" X="0" Y="0"/>
+                    </TransformGroup>
+                </Button.RenderTransform>
+            </Button>
+        </Canvas>
+    </Grid>
+</Window>
