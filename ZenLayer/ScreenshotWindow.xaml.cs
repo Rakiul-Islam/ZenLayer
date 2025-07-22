@@ -212,19 +212,17 @@ namespace ZenLayer
                 h = Math.Max(1, Math.Min(h, _screenCapture.Height - y));
 
                 // Create cropped bitmap
-                using (var croppedBitmap = new Bitmap(w, h))
+                var croppedBitmap = new Bitmap(w, h);
+                using (var graphics = Graphics.FromImage(croppedBitmap))
                 {
-                    using (var graphics = Graphics.FromImage(croppedBitmap))
-                    {
-                        graphics.DrawImage(_screenCapture,
-                            new System.Drawing.Rectangle(0, 0, w, h), // Explicitly use System.Drawing.Rectangle
-                            new System.Drawing.Rectangle(x, y, w, h), // Explicitly use System.Drawing.Rectangle
-                            GraphicsUnit.Pixel);
-                    }
-
-                    // Save to Screenshots folder
-                    SaveScreenshot(croppedBitmap);
+                    graphics.DrawImage(_screenCapture,
+                        new System.Drawing.Rectangle(0, 0, w, h),
+                        new System.Drawing.Rectangle(x, y, w, h),
+                        GraphicsUnit.Pixel);
                 }
+
+                ShowPreviewWithSaveOption(croppedBitmap);
+
             }
             catch (Exception ex)
             {
@@ -233,13 +231,222 @@ namespace ZenLayer
             }
         }
 
+        private void ShowPreviewWithSaveOption(Bitmap croppedBitmap)
+        {
+            // Convert bitmap to BitmapSource for WPF display
+            BitmapSource bitmapSource = null;
+            try
+            {
+                var hBitmap = croppedBitmap.GetHbitmap();
+                bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                    hBitmap,
+                    IntPtr.Zero,
+                    Int32Rect.Empty,
+                    BitmapSizeOptions.FromEmptyOptions());
+                DeleteObject(hBitmap);
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to create preview: {ex.Message}",
+                    "Preview Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                Close();
+                return;
+            }
+
+            // Create the main grid for layout
+            var mainGrid = new Grid();
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Image area
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Text area
+            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Button area
+            mainGrid.Margin = new Thickness(10);
+
+            // Create image display
+            var imageDisplay = new System.Windows.Controls.Image
+            {
+                Source = bitmapSource,
+                MaxWidth = 500,
+                MaxHeight = 400,
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = System.Windows.VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 10)
+            };
+            Grid.SetRow(imageDisplay, 0);
+            mainGrid.Children.Add(imageDisplay);
+
+            // Create instruction text
+            var textBlock = new TextBlock
+            {
+                Text = "Screenshot captured! Click 'Save' to save it to your Pictures/Screenshots folder.",
+                Margin = new Thickness(10),
+                TextWrapping = TextWrapping.Wrap,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = System.Windows.VerticalAlignment.Top,
+                FontSize = 12,
+                TextAlignment = TextAlignment.Center
+            };
+            Grid.SetRow(textBlock, 1);
+            mainGrid.Children.Add(textBlock);
+
+            // Create button panel
+            var buttonPanel = new StackPanel
+            {
+                Orientation = System.Windows.Controls.Orientation.Horizontal,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                Margin = new Thickness(0, 15, 0, 0)
+            };
+
+            // Save button
+            var saveButton = new System.Windows.Controls.Button
+            {
+                Content = "💾 Save",
+                Padding = new Thickness(20, 8, 20, 8),
+                Margin = new Thickness(10),
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                FontSize = 14,
+                FontWeight = FontWeights.Bold
+            };
+
+            // Copy to clipboard button
+            var copyButton = new System.Windows.Controls.Button
+            {
+                Content = "📋 Copy",
+                Padding = new Thickness(20, 8, 20, 8),
+                Margin = new Thickness(10),
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 152, 219)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                FontSize = 14
+            };
+
+            // Cancel button
+            var cancelButton = new System.Windows.Controls.Button
+            {
+                Content = "❌ Cancel",
+                Padding = new Thickness(20, 8, 20, 8),
+                Margin = new Thickness(10),
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                FontSize = 14
+            };
+
+            buttonPanel.Children.Add(saveButton);
+            buttonPanel.Children.Add(copyButton);
+            buttonPanel.Children.Add(cancelButton);
+            Grid.SetRow(buttonPanel, 2);
+            mainGrid.Children.Add(buttonPanel);
+
+            // Create the preview window
+            var previewWindow = new Window
+            {
+                Title = "Screenshot Preview - Save or Cancel",
+                Content = new ScrollViewer
+                {
+                    Content = mainGrid,
+                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+                },
+                Width = 600,
+                Height = 500,
+                MinWidth = 450,
+                MinHeight = 350,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                ResizeMode = ResizeMode.CanResize,
+                Topmost = true,
+                ShowInTaskbar = false
+            };
+
+            // Save button click handler
+            saveButton.Click += (s, e) =>
+            {
+                try
+                {
+                    SaveScreenshot(croppedBitmap);
+
+                    // Update button text to show success
+                    saveButton.Content = "✓ Saved!";
+                    saveButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(39, 174, 96));
+
+                    // Reset button text after 2 seconds
+                    var resetTimer = new System.Windows.Threading.DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromSeconds(2)
+                    };
+                    resetTimer.Tick += (sender, args) =>
+                    {
+                        saveButton.Content = "💾 Save";
+                        saveButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113));
+                        resetTimer.Stop();
+                    };
+                    resetTimer.Start();
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show($"Failed to save screenshot: {ex.Message}",
+                        "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            };
+
+
+            // Copy button click handler
+            copyButton.Click += (s, e) =>
+            {
+                try
+                {
+                    System.Windows.Clipboard.SetImage(bitmapSource);
+
+                    // Update button text to show success
+                    copyButton.Content = "✓ Copied!";
+                    copyButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(39, 174, 96));
+
+                    // Reset button text after 2 seconds
+                    var resetTimer = new System.Windows.Threading.DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromSeconds(2)
+                    };
+                    resetTimer.Tick += (sender, args) =>
+                    {
+                        copyButton.Content = "📋 Copy";
+                        copyButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 152, 219));
+                        resetTimer.Stop();
+                    };
+                    resetTimer.Start();
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show($"Failed to copy to clipboard: {ex.Message}", "Error",
+                        MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            };
+
+            // Cancel button click handler
+            cancelButton.Click += (s, e) =>
+            {
+                previewWindow.Close();
+                this.Close();
+            };
+
+            // When preview window is closed, also close the main screenshot window
+            previewWindow.Closed += (s, e) =>
+            {
+                this.Close();
+            };
+
+            previewWindow.Show();
+        }
+
         private void SaveScreenshot(Bitmap bitmap)
         {
             try
             {
                 // Get the Pictures folder path
                 string picturesPath = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-                // Fixed: Use System.IO.Path explicitly
                 string screenshotsPath = System.IO.Path.Combine(picturesPath, "Screenshots");
 
                 // Create Screenshots folder if it doesn't exist
@@ -251,231 +458,28 @@ namespace ZenLayer
                 // Generate filename with timestamp
                 string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
                 string fileName = $"Screenshot_{timestamp}.png";
-                // Fixed: Use System.IO.Path explicitly
                 string fullPath = System.IO.Path.Combine(screenshotsPath, fileName);
 
                 // Save the bitmap
                 bitmap.Save(fullPath, ImageFormat.Png);
 
-                // Show notification
-                ShowNotification($"Screenshot saved to:\n{fullPath}");
+                // REMOVE the MessageBox.Show here - success will be shown via button feedback
+                // System.Windows.MessageBox.Show($"Screenshot saved successfully!\n\nLocation: {fullPath}",
+                //     "Screenshot Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+
+                // Optionally, you could update a status label or text block in the preview window
+                // to show the save path instead of using a popup
             }
             catch (Exception ex)
             {
+                // Keep error messages as they are important for troubleshooting
                 System.Windows.MessageBox.Show($"Failed to save screenshot: {ex.Message}",
                     "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
-
-                // Close the screenshot window on error
-                Close();
+                throw; // Re-throw so the calling method knows it failed
             }
         }
 
-        private void ShowNotification(string message)
-        {
-            // Create the main grid for layout
-            var mainGrid = new Grid();
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) }); // Image area
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Text area
-            mainGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); // Button area
-            mainGrid.Margin = new Thickness(10);
 
-            // Create image display
-            var imageDisplay = new System.Windows.Controls.Image
-            {
-                MaxWidth = 400,
-                MaxHeight = 300,
-                Stretch = Stretch.Uniform,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                VerticalAlignment = System.Windows.VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 0, 10)
-            };
-
-            // Convert the bitmap to BitmapSource for WPF Image control
-            try
-            {
-                // Get the last saved screenshot path from the message
-                string[] lines = message.Split('\n');
-                if (lines.Length > 1)
-                {
-                    string filePath = lines[1]; // The file path should be on the second line
-                    if (System.IO.File.Exists(filePath))
-                    {
-                        var bitmapImage = new BitmapImage();
-                        bitmapImage.BeginInit();
-                        bitmapImage.UriSource = new Uri(filePath);
-                        bitmapImage.DecodePixelWidth = 400; // Limit decode size for performance
-                        bitmapImage.EndInit();
-                        imageDisplay.Source = bitmapImage;
-                    }
-                }
-            }
-            catch
-            {
-                // If image loading fails, show a placeholder
-                imageDisplay.Source = null;
-                var placeholder = new TextBlock
-                {
-                    Text = "📷 Screenshot Preview Unavailable",
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                    VerticalAlignment = System.Windows.VerticalAlignment.Center,
-                    FontSize = 14,
-                    Foreground = System.Windows.Media.Brushes.Gray
-                };
-                Grid.SetRow(placeholder, 0);
-                mainGrid.Children.Add(placeholder);
-            }
-
-            if (imageDisplay.Source != null)
-            {
-                Grid.SetRow(imageDisplay, 0);
-                mainGrid.Children.Add(imageDisplay);
-            }
-
-            // Create text display
-            var textBlock = new TextBlock
-            {
-                Text = message,
-                Margin = new Thickness(10),
-                TextWrapping = TextWrapping.Wrap,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-                VerticalAlignment = System.Windows.VerticalAlignment.Top,
-                FontSize = 12
-            };
-            Grid.SetRow(textBlock, 1);
-            mainGrid.Children.Add(textBlock);
-
-            // Create button panel
-            var buttonPanel = new StackPanel
-            {
-                Orientation = System.Windows.Controls.Orientation.Horizontal,
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                Margin = new Thickness(0, 10, 0, 0)
-            };
-
-            // Copy to clipboard button
-            var copyButton = new System.Windows.Controls.Button
-            {
-                Content = "Copy to Clipboard",
-                Padding = new Thickness(15, 5, 15, 5),
-                Margin = new Thickness(5),
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 152, 219)),
-                Foreground = System.Windows.Media.Brushes.White,
-                BorderThickness = new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-
-            // Close button
-            var closeButton = new System.Windows.Controls.Button
-            {
-                Content = "Close",
-                Padding = new Thickness(15, 5, 15, 5),
-                Margin = new Thickness(5),
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(149, 165, 166)),
-                Foreground = System.Windows.Media.Brushes.White,
-                BorderThickness = new Thickness(0),
-                Cursor = System.Windows.Input.Cursors.Hand
-            };
-
-            buttonPanel.Children.Add(copyButton);
-            buttonPanel.Children.Add(closeButton);
-            Grid.SetRow(buttonPanel, 2);
-            mainGrid.Children.Add(buttonPanel);
-
-            // Create the notification window
-            var notification = new Window
-            {
-                Title = "Screenshot Saved",
-                Content = new ScrollViewer
-                {
-                    Content = mainGrid,
-                    VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                    HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
-                },
-                Width = 500,
-                Height = 450,
-                MinWidth = 400,
-                MinHeight = 300,
-                WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                ResizeMode = ResizeMode.CanResize,
-                Topmost = true,
-                ShowInTaskbar = false,
-                SizeToContent = SizeToContent.Manual
-            };
-
-            // Store the file path for the copy button
-            string screenshotPath = null;
-            try
-            {
-                string[] lines = message.Split('\n');
-                if (lines.Length > 1)
-                {
-                    screenshotPath = lines[1];
-                }
-            }
-            catch { }
-
-            // Copy button click handler
-            copyButton.Click += (s, e) =>
-            {
-                try
-                {
-                    if (!string.IsNullOrEmpty(screenshotPath) && System.IO.File.Exists(screenshotPath))
-                    {
-                        // Load the image and copy to clipboard
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.UriSource = new Uri(screenshotPath);
-                        bitmap.EndInit();
-
-                        System.Windows.Clipboard.SetImage(bitmap);
-
-                        // Update button text to show success
-                        copyButton.Content = "✓ Copied!";
-                        copyButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(39, 174, 96));
-
-                        // Reset button text after 2 seconds
-                        var resetTimer = new System.Windows.Threading.DispatcherTimer
-                        {
-                            Interval = TimeSpan.FromSeconds(2)
-                        };
-                        resetTimer.Tick += (sender, args) =>
-                        {
-                            copyButton.Content = "Copy to Clipboard";
-                            copyButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(52, 152, 219));
-                            resetTimer.Stop();
-                        };
-                        resetTimer.Start();
-                    }
-                    else
-                    {
-                        System.Windows.MessageBox.Show("Screenshot file not found!", "Error",
-                            MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Windows.MessageBox.Show($"Failed to copy to clipboard: {ex.Message}", "Error",
-                        MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            };
-
-            // Close button click handler - also close the main screenshot window
-            closeButton.Click += (s, e) =>
-            {
-                notification.Close();
-                this.Close(); // Close the main screenshot window
-            };
-
-            // When notification window is closed, also close the main screenshot window
-            notification.Closed += (s, e) =>
-            {
-                this.Close();
-            };
-
-            notification.Show();
-
-            // Remove auto-close timer - let user control when to close
-        }
 
         protected override void OnClosed(EventArgs e)
         {

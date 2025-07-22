@@ -53,8 +53,10 @@
                 </Grid>
             </Border>
 
-            <!-- Grayscale Toggle Button -->
+            <!-- Grayscale Toggle Button - Positioned to the left -->
             <Button Name="GrayscaleButton" 
+                    Canvas.Left="-80"
+                    Canvas.Top="10"
                     Width="60" 
                     Height="60"
                     Click="GrayscaleButton_Click"
@@ -142,8 +144,10 @@
                 </Button.RenderTransform>
             </Button>
 
-            <!-- Screenshot Button -->
+            <!-- Screenshot Button - Positioned to the top -->
             <Button Name="ScreenshotButton" 
+                    Canvas.Left="10"
+                    Canvas.Top="-80"
                     Width="60" 
                     Height="60"
                     Click="ScreenshotButton_Click"
@@ -231,8 +235,10 @@
                 </Button.RenderTransform>
             </Button>
 
-            <!-- Close Button -->
+            <!-- Close Button - Positioned to the right -->
             <Button Name="CloseButton" 
+                    Canvas.Left="100"
+                    Canvas.Top="15"
                     Width="50" 
                     Height="50"
                     Click="CloseButton_Click"

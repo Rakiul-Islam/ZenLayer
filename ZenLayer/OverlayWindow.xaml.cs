@@ -130,7 +130,7 @@ namespace ZenLayer
 
                 // Screenshot button - right side
                 Canvas.SetLeft(ScreenshotButton, centralX + 70);
-                Canvas.SetTop(ScreenshotButton, centralY + 10);
+                Canvas.SetTop(ScreenshotButton, centralY + 30);
 
                 // Close button - bottom left
                 Canvas.SetLeft(CloseButton, centralX - 40);
