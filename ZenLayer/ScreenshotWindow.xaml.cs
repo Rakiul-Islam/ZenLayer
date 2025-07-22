@@ -323,6 +323,20 @@ namespace ZenLayer
                 FontSize = 14
             };
 
+            // Add the AI Analysis button after the copy button
+            var aiButton = new System.Windows.Controls.Button
+            {
+                Content = "🤖 AI",
+                Padding = new Thickness(20, 8, 20, 8),
+                Margin = new Thickness(10),
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(155, 89, 182)),
+                Foreground = System.Windows.Media.Brushes.White,
+                BorderThickness = new Thickness(0),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                FontSize = 14,
+                FontWeight = FontWeights.Bold
+            };
+
             // Cancel button
             var cancelButton = new System.Windows.Controls.Button
             {
@@ -338,6 +352,7 @@ namespace ZenLayer
 
             buttonPanel.Children.Add(saveButton);
             buttonPanel.Children.Add(copyButton);
+            buttonPanel.Children.Add(aiButton); // Add this line
             buttonPanel.Children.Add(cancelButton);
             Grid.SetRow(buttonPanel, 2);
             mainGrid.Children.Add(buttonPanel);
@@ -425,6 +440,22 @@ namespace ZenLayer
                 }
             };
 
+            // Add AI button click handler
+            aiButton.Click += (s, e) =>
+            {
+                try
+                {
+                    OpenAIAnalysisWindow(croppedBitmap, bitmapSource);
+                    previewWindow.Close(); // Close current window
+                    this.Close(); // Close screenshot window
+                }
+                catch (Exception ex)
+                {
+                    System.Windows.MessageBox.Show($"Failed to open AI analysis: {ex.Message}",
+                        "AI Analysis Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            };
+
             // Cancel button click handler
             cancelButton.Click += (s, e) =>
             {
@@ -479,7 +510,12 @@ namespace ZenLayer
             }
         }
 
-
+        // 2. Add this method to your ScreenshotWindow class:
+        private void OpenAIAnalysisWindow(Bitmap bitmap, BitmapSource bitmapSource)
+        {
+            var aiWindow = new AIAnalysisWindow(bitmap, bitmapSource);
+            aiWindow.Show();
+        }
 
         protected override void OnClosed(EventArgs e)
         {

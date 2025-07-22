@@ -364,3 +364,4 @@ FodyWeavers.xsd
 
 # User Defined
 ZenLayer/getAll.py
+ZenLayer/config.json

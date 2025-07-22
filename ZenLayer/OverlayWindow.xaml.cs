@@ -45,6 +45,7 @@ namespace ZenLayer
         public OverlayWindow(ColorFilterManager colorFilterManager, string logoPath = "")
         {
             InitializeComponent();
+            InitializeFullScreenOverlay();
             _colorFilterManager = colorFilterManager;
             _logoPath = logoPath;
 
@@ -63,6 +64,22 @@ namespace ZenLayer
 
             // Update button appearance
             UpdateButtonAppearance();
+        }
+
+        private void InitializeFullScreenOverlay()
+        {
+            var virtualScreen = SystemInformation.VirtualScreen;
+
+            this.Left = virtualScreen.Left;
+            this.Top = virtualScreen.Top;
+            this.Width = virtualScreen.Width;
+            this.Height = virtualScreen.Height;
+
+            this.Topmost = true;
+            this.WindowStyle = WindowStyle.None;
+            this.ResizeMode = ResizeMode.NoResize;
+            this.AllowsTransparency = true;
+            this.Background = System.Windows.Media.Brushes.Transparent;
         }
 
         private void LoadLogo()

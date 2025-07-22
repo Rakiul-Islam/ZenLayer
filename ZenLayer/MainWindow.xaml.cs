@@ -440,6 +440,33 @@ namespace ZenLayer
             }
         }
 
+        private async void ScreenshotButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Temporarily minimize the main window so it doesn't appear in the screenshot
+                this.WindowState = WindowState.Minimized;
+
+                // Small delay to ensure the window is minimized before taking screenshot
+                await Task.Delay(200);
+
+                // Open screenshot selection window
+                var screenshotWindow = new ScreenshotWindow();
+                screenshotWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to open screenshot tool: {ex.Message}",
+                    "Screenshot Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+            finally
+            {
+                // Restore the main window after screenshot is done
+                this.WindowState = WindowState.Normal;
+                this.Activate();
+            }
+        }
+
         private void LoadSettings()
         {
             StartupCheckBox.IsChecked = Properties.Settings.Default.StartWithWindows;

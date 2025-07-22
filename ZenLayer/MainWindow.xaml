@@ -34,8 +34,6 @@
                       Padding="5">
             <StackPanel Margin="30" VerticalAlignment="Center" MinWidth="300">
 
-
-
                 <!-- Toggle Button with Dynamic Styling -->
                 <Button Name="ToggleButton" 
                        Height="60" 
@@ -44,7 +42,8 @@
                        BorderThickness="0"
                        Cursor="Hand"
                        Click="ToggleButton_Click"
-                       MinWidth="200">
+                       MinWidth="200"
+                       Margin="0,0,0,15">
 
                     <!-- Button Style with rounded corners -->
                     <Button.Style>
@@ -104,33 +103,101 @@
                     </StackPanel>
                 </Button>
 
+                <!-- Screenshot Button -->
+                <Button Name="ScreenshotButton" 
+                       Height="60" 
+                       FontSize="16" 
+                       FontWeight="Bold"
+                       BorderThickness="0"
+                       Cursor="Hand"
+                       Click="ScreenshotButton_Click"
+                       MinWidth="200"
+                       Margin="0,0,0,20">
+
+                    <!-- Button Style with rounded corners -->
+                    <Button.Style>
+                        <Style TargetType="Button">
+                            <Setter Property="Background" Value="#3498DB"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}"
+                                               CornerRadius="8"
+                                               BorderThickness="0">
+                                            <ContentPresenter HorizontalAlignment="Center" 
+                                                            VerticalAlignment="Center"/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#2980B9"/>
+                                            </Trigger>
+                                            <Trigger Property="IsPressed" Value="True">
+                                                <Setter Property="Background" Value="#21618C"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </Button.Style>
+
+                    <!-- Button Content -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Border Width="24" 
+                               Height="24" 
+                               CornerRadius="4"
+                               Background="White"
+                               Margin="0,0,10,0"
+                               VerticalAlignment="Center">
+                            <TextBlock Text="📷" 
+                                      FontSize="12"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="Take a Snapshot" 
+                                      FontSize="16"
+                                      FontWeight="Bold"
+                                      Foreground="White"
+                                      TextWrapping="Wrap"/>
+                            <TextBlock Text="Select area and capture screenshot" 
+                                      FontSize="11"
+                                      Foreground="White"
+                                      Opacity="0.8"
+                                      Margin="0,2,0,0"
+                                      TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Button>
+
                 <!-- Keyboard Shortcut Tip -->
-                <Border Background="#ECF0F1" 
-                       CornerRadius="6" 
-                       Padding="15" 
-                       Margin="0,20,0,0">
+                <Border Background="#ECF0F1" CornerRadius="6" Padding="15" Margin="0,0,0,0">
                     <StackPanel HorizontalAlignment="Center">
                         <TextBlock Text="💡 Keyboard Shortcut" 
-                                  FontSize="12" 
-                                  FontWeight="Bold"
-                                  Foreground="#34495E"
-                                  HorizontalAlignment="Center"
-                                  Margin="0,0,0,5"
-                                  TextWrapping="Wrap"/>
-                        <TextBlock Text="Windows + Ctrl + C" 
-                                  FontSize="14" 
-                                  FontWeight="Bold"
-                                  Foreground="#2C3E50"
-                                  HorizontalAlignment="Center"
-                                  Margin="0,0,0,3"
-                                  TextWrapping="Wrap"/>
-                        <TextBlock Text="Use this shortcut anytime to toggle" 
-                                  FontSize="11" 
-                                  Foreground="#7F8C8D"
-                                  HorizontalAlignment="Center"
-                                  TextWrapping="Wrap"/>
+                               FontSize="12" 
+                               FontWeight="Bold"
+                               Foreground="#34495E"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,5"/>
+                        <TextBlock Text="Windows + Ctrl + X" 
+                               FontSize="14" 
+                               FontWeight="Bold"
+                               Foreground="#2C3E50"
+                               HorizontalAlignment="Center"
+                               Margin="0,0,0,3"/>
+                        <TextBlock Text="Use this shortcut anytime when minimized to system tray" 
+                               FontSize="11" 
+                               Foreground="#7F8C8D"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
+                <TextBlock Text="You can minimize this window now" 
+                    FontSize="12" 
+                    FontWeight="SemiBold" 
+                    Foreground="#2C3E50" 
+                    HorizontalAlignment="Center"
+                    Margin="0,15,0,0"/>
             </StackPanel>
         </ScrollViewer>
 
