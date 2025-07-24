@@ -48,6 +48,9 @@ namespace ZenLayer
         [DllImport("gdi32.dll")]
         private static extern bool DeleteObject(IntPtr hObject);
 
+        [DllImport("gdi32.dll")]
+        private static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+
         private const uint SRCCOPY = 0x00CC0020;
 
         public ScreenshotWindow()
@@ -59,13 +62,14 @@ namespace ZenLayer
 
         private void CaptureScreen()
         {
-            // Get screen dimensions
-            int screenWidth = (int)SystemParameters.PrimaryScreenWidth;
-            int screenHeight = (int)SystemParameters.PrimaryScreenHeight;
-
-            // Capture the entire screen
+            // Get actual screen dimensions in pixels using Windows API
             IntPtr hDesk = GetDesktopWindow();
             IntPtr hSrce = GetWindowDC(hDesk);
+            
+            // Get the actual screen dimensions in pixels
+            int screenWidth = GetDeviceCaps(hSrce, 8);  // HORZRES
+            int screenHeight = GetDeviceCaps(hSrce, 10); // VERTRES
+            
             IntPtr hDest = CreateCompatibleDC(hSrce);
             IntPtr hBmp = CreateCompatibleBitmap(hSrce, screenWidth, screenHeight);
             IntPtr hOldBmp = SelectObject(hDest, hBmp);

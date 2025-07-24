@@ -28,6 +28,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AvalonEdit" Version="6.3.1.120" />
+    <PackageReference Include="MarkdownSharp" Version="2.0.5" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Drawing.Common" Version="9.0.7" />
 	<PackageReference Include="Microsoft.Windows.Compatibility" Version="5.0.2" />
@@ -46,6 +48,10 @@
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
     </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Assets\Html\" />
   </ItemGroup>
 
 </Project>

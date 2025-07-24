@@ -74,6 +74,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="1*" MinWidth="250"/>
+            <ColumnDefinition Width="5"/>
             <ColumnDefinition Width="2*" MinWidth="350"/>
         </Grid.ColumnDefinitions>
 
@@ -123,93 +124,98 @@
             </StackPanel>
         </Border>
 
+        <!-- GridSplitter for resizing -->
+        <GridSplitter Grid.Column="1"
+                      HorizontalAlignment="Stretch"
+                      VerticalAlignment="Stretch"
+                      Background="#E1E8ED"
+                      ShowsPreview="True"
+                      ResizeBehavior="PreviousAndNext"
+                      ResizeDirection="Columns"/>
+
         <!-- Right Panel - AI Interaction -->
-        <ScrollViewer Grid.Column="1" 
-                      VerticalScrollBarVisibility="Auto"
-                      HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Margin="20">
+        <!-- RIGHT PANEL -->
+        <ScrollViewer Grid.Column="2" 
+              VerticalScrollBarVisibility="Auto"
+              HorizontalScrollBarVisibility="Disabled">
+            <Grid Margin="20">
+                <Grid.RowDefinitions>
+                    <!-- All top content -->
+                    <RowDefinition Height="Auto"/>
+                    <!-- The AI Response section -->
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
 
-                <!-- Header -->
-                <TextBlock Text="AI Analysis" 
-                          Style="{StaticResource SectionHeaderStyle}"/>
+                <!-- Top part of the right panel -->
+                <StackPanel Grid.Row="0">
+                    <TextBlock Text="AI Analysis" 
+                       Style="{StaticResource SectionHeaderStyle}"/>
 
-                <!-- Quick Prompts Section -->
-                <TextBlock Text="Quick Prompts:" 
-                          Style="{StaticResource SubHeaderStyle}"/>
+                    <!-- Quick Prompts -->
+                    <TextBlock Text="Quick Prompts:" 
+                       Style="{StaticResource SubHeaderStyle}"/>
 
-                <WrapPanel Name="QuickPromptsPanel" 
-                          Margin="0,0,0,15">
-                    <!-- Quick prompt buttons will be added programmatically -->
-                </WrapPanel>
+                    <WrapPanel Name="QuickPromptsPanel" Margin="0,0,0,15"/>
 
-                <!-- Custom Prompt Section -->
-                <TextBlock Text="Prompt:" 
-                          Style="{StaticResource SubHeaderStyle}"/>
+                    <!-- Custom Prompt -->
+                    <TextBlock Text="Prompt:" 
+                       Style="{StaticResource SubHeaderStyle}"/>
 
-                <TextBox Name="PromptTextBox"
-                        Height="80"
-                        TextWrapping="Wrap"
-                        AcceptsReturn="True"
-                        VerticalScrollBarVisibility="Auto"
-                        Text="Describe what you see in this image and provide any relevant insights."
-                        Margin="0,0,0,10"
-                        Padding="8"
-                        BorderBrush="#BDC3C7"
-                        Background="White"/>
+                    <TextBox Name="PromptTextBox"
+                     Height="80"
+                     TextWrapping="Wrap"
+                     AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto"
+                     Text="Describe what you see in this image and provide any relevant insights."
+                     Margin="0,0,0,10"
+                     Padding="8"
+                     BorderBrush="#BDC3C7"
+                     Background="White"/>
 
-                <!-- Analyze Button -->
-                <Button Name="AnalyzeButton"
-                       Content="🚀 Analyze with AI"
-                       Style="{StaticResource PrimaryButtonStyle}"
-                       HorizontalAlignment="Left"/>
+                    <!-- Analyze Button -->
+                    <Button Name="AnalyzeButton"
+                    Content="🚀 Analyze with AI"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    HorizontalAlignment="Left"/>
 
-                <!-- Response Section -->
-                <TextBlock Text="AI Response:" 
-                          Style="{StaticResource SubHeaderStyle}"/>
+                    <!-- AI Response Header -->
+                    <TextBlock Text="AI Response:" 
+                       Style="{StaticResource SubHeaderStyle}"/>
 
-                <Border BorderBrush="#E1E8ED" 
-                        BorderThickness="1" 
-                        CornerRadius="4" 
-                        Background="White">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                 HorizontalScrollBarVisibility="Disabled"
-                                 MaxHeight="300">
-                        <TextBox Name="ResponseTextBox"
-                                TextWrapping="Wrap"
-                                IsReadOnly="True"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Padding="12"
-                                Text="Click 'Analyze with AI' to get AI insights about your screenshot..."
-                                FontFamily="Segoe UI"
-                                FontSize="12"/>
-                    </ScrollViewer>
-                </Border>
-
-                <!-- Action Buttons -->
-                <StackPanel Orientation="Horizontal" 
-                           Margin="0,15,0,0">
-                    <Button Name="CopyResponseButton"
-                           Content="📋 Copy Response"
-                           Padding="12,6"
-                           Margin="0,0,10,0"
-                           Background="#3498DB"
-                           Foreground="White"
-                           BorderThickness="0"
-                           Cursor="Hand"
-                           IsEnabled="False"/>
-
-                    <Button Name="SaveResponseButton"
-                           Content="💾 Save Response"
-                           Padding="12,6"
-                           Background="#27AE60"
-                           Foreground="White"
-                           BorderThickness="0"
-                           Cursor="Hand"
-                           IsEnabled="False"/>
+                    <!-- Copy / Save Buttons -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button Name="CopyResponseButton"
+                        Content="📋 Copy Response"
+                        Padding="12,6"
+                        Margin="0,0,10,0"
+                        Background="#3498DB"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        IsEnabled="False"/>
+                        <Button Name="SaveResponseButton"
+                        Content="💾 Save Response"
+                        Padding="12,6"
+                        Background="#27AE60"
+                        Foreground="White"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        IsEnabled="False"/>
+                    </StackPanel>
                 </StackPanel>
 
-            </StackPanel>
+                <!-- AI Response Section - FULL HEIGHT -->
+                <Border Grid.Row="1"
+                BorderBrush="#E1E8ED" 
+                BorderThickness="1" 
+                CornerRadius="4" 
+                Background="White"
+                Margin="0,0,0,15">
+                    <WebBrowser Name="ResponseWebBrowser"
+                        Margin="0"/>
+                </Border>
+            </Grid>
         </ScrollViewer>
+
     </Grid>
 </Window>

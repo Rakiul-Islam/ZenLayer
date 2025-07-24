@@ -11,6 +11,10 @@ using System.Windows.Forms;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+using System.Windows.Media.Imaging;
 
 namespace ZenLayer
 {
@@ -23,6 +27,40 @@ namespace ZenLayer
         private GlobalHotkeyManager? _hotkeyManager;
         private OverlayWindow? _overlayWindow;
         private bool _overlayVisible = false;
+
+        // Screenshot capture functionality
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetDesktopWindow();
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetWindowDC(IntPtr hWnd);
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateCompatibleDC(IntPtr hdc);
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr CreateCompatibleBitmap(IntPtr hdc, int nWidth, int nHeight);
+
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr SelectObject(IntPtr hdc, IntPtr hgdiobj);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool BitBlt(IntPtr hdcDest, int nXDest, int nYDest, int nWidth, int nHeight,
+            IntPtr hdcSrc, int nXSrc, int nYSrc, uint dwRop);
+
+        [DllImport("user32.dll")]
+        private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteDC(IntPtr hdc);
+
+        [DllImport("gdi32.dll")]
+        private static extern bool DeleteObject(IntPtr hObject);
+
+        [DllImport("gdi32.dll")]
+        private static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+
+        private const uint SRCCOPY = 0x00CC0020;
 
         public MainWindow()
         {

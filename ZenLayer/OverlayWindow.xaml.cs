@@ -45,7 +45,6 @@ namespace ZenLayer
         public OverlayWindow(ColorFilterManager colorFilterManager, string logoPath = "")
         {
             InitializeComponent();
-            InitializeFullScreenOverlay();
             _colorFilterManager = colorFilterManager;
             _logoPath = logoPath;
 
@@ -64,22 +63,6 @@ namespace ZenLayer
 
             // Update button appearance
             UpdateButtonAppearance();
-        }
-
-        private void InitializeFullScreenOverlay()
-        {
-            var virtualScreen = SystemInformation.VirtualScreen;
-
-            this.Left = virtualScreen.Left;
-            this.Top = virtualScreen.Top;
-            this.Width = virtualScreen.Width;
-            this.Height = virtualScreen.Height;
-
-            this.Topmost = true;
-            this.WindowStyle = WindowStyle.None;
-            this.ResizeMode = ResizeMode.NoResize;
-            this.AllowsTransparency = true;
-            this.Background = System.Windows.Media.Brushes.Transparent;
         }
 
         private void LoadLogo()
@@ -141,13 +124,18 @@ namespace ZenLayer
                 Canvas.SetTop(CentralBox, centralY);
 
                 // Position buttons around the central box in a circular pattern
-                // Grayscale button - top right
-                Canvas.SetLeft(GrayscaleButton, centralX + 60);
-                Canvas.SetTop(GrayscaleButton, centralY - 30);
 
-                // Screenshot button - right side
-                Canvas.SetLeft(ScreenshotButton, centralX + 70);
-                Canvas.SetTop(ScreenshotButton, centralY + 30);
+                // Grayscale button - top left
+                Canvas.SetLeft(GrayscaleButton, centralX + 20);
+                Canvas.SetTop(GrayscaleButton, centralY - 52);
+
+                // Screenshot button - top right
+                Canvas.SetLeft(ScreenshotButton, centralX + 62);
+                Canvas.SetTop(ScreenshotButton, centralY - 24);
+
+                // Extract Text button - right side
+                Canvas.SetLeft(ExtractTextButton, centralX + 75);
+                Canvas.SetTop(ExtractTextButton, centralY + 20);
 
                 // Close button - bottom left
                 Canvas.SetLeft(CloseButton, centralX - 40);
@@ -198,6 +186,10 @@ namespace ZenLayer
             var screenshotScale = screenshotTransform?.Children[0] as ScaleTransform;
             var screenshotTranslate = screenshotTransform?.Children[1] as TranslateTransform;
 
+            var extractTextTransform = ExtractTextButton.RenderTransform as TransformGroup;
+            var extractTextScale = extractTextTransform?.Children[0] as ScaleTransform;
+            var extractTextTranslate = extractTextTransform?.Children[1] as TranslateTransform;
+
             var closeTransform = CloseButton.RenderTransform as TransformGroup;
             var closeScale = closeTransform?.Children[0] as ScaleTransform;
             var closeTranslate = closeTransform?.Children[1] as TranslateTransform;
@@ -220,16 +212,17 @@ namespace ZenLayer
                 await Task.Delay(150);
 
                 // Animate buttons coming out from center
-                var buttonDistance = 60.0; // Distance from center
-                var screenshotDistance = 70.0;
+                var buttonDistance = 70.0; // Distance from center
+                var screenshotDistance = 60.0;
+                var extractTextDistance = 70.0;
                 var closeDistance = 50.0;
 
                 // Animate grayscale button
                 if (buttonScale != null && buttonTranslate != null)
                 {
-                    // Start from center
+                    // Start from center - FIXED: should be negative X to animate from center outward
                     buttonTranslate.X = -buttonDistance;
-                    buttonTranslate.Y = buttonDistance / 2;
+                    buttonTranslate.Y = -buttonDistance / 2;
 
                     var buttonScaleAnim = new DoubleAnimation(0.1, 1.0, TimeSpan.FromMilliseconds(250))
                     {
@@ -241,7 +234,7 @@ namespace ZenLayer
                         EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
                     };
 
-                    var buttonMoveYAnim = new DoubleAnimation(buttonDistance / 2, 0, TimeSpan.FromMilliseconds(300))
+                    var buttonMoveYAnim = new DoubleAnimation(buttonDistance, 0, TimeSpan.FromMilliseconds(300))
                     {
                         EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
                     };
@@ -261,7 +254,7 @@ namespace ZenLayer
                 if (screenshotScale != null && screenshotTranslate != null)
                 {
                     screenshotTranslate.X = -screenshotDistance;
-                    screenshotTranslate.Y = -10;
+                    screenshotTranslate.Y = screenshotDistance / 2;
 
                     var screenshotScaleAnim = new DoubleAnimation(0.1, 1.0, TimeSpan.FromMilliseconds(250))
                     {
@@ -273,7 +266,7 @@ namespace ZenLayer
                         EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
                     };
 
-                    var screenshotMoveYAnim = new DoubleAnimation(-10, 0, TimeSpan.FromMilliseconds(300))
+                    var screenshotMoveYAnim = new DoubleAnimation(screenshotDistance / 2, 0, TimeSpan.FromMilliseconds(300))
                     {
                         EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
                     };
@@ -285,6 +278,38 @@ namespace ZenLayer
                     screenshotTranslate.BeginAnimation(TranslateTransform.XProperty, screenshotMoveXAnim);
                     screenshotTranslate.BeginAnimation(TranslateTransform.YProperty, screenshotMoveYAnim);
                     ScreenshotButton.BeginAnimation(OpacityProperty, screenshotOpacityAnim);
+                }
+
+                // Animate extract text button with slight delay
+                await Task.Delay(25);
+
+                if (extractTextScale != null && extractTextTranslate != null)
+                {
+                    extractTextTranslate.X = -extractTextDistance;
+                    extractTextTranslate.Y = -extractTextDistance / 2;
+
+                    var extractTextScaleAnim = new DoubleAnimation(0.1, 1.0, TimeSpan.FromMilliseconds(250))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var extractTextMoveXAnim = new DoubleAnimation(-extractTextDistance, 0, TimeSpan.FromMilliseconds(300))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var extractTextMoveYAnim = new DoubleAnimation(-extractTextDistance / 2, 0, TimeSpan.FromMilliseconds(300))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var extractTextOpacityAnim = new DoubleAnimation(0, 1.0, TimeSpan.FromMilliseconds(250));
+
+                    extractTextScale.BeginAnimation(ScaleTransform.ScaleXProperty, extractTextScaleAnim);
+                    extractTextScale.BeginAnimation(ScaleTransform.ScaleYProperty, extractTextScaleAnim);
+                    extractTextTranslate.BeginAnimation(TranslateTransform.XProperty, extractTextMoveXAnim);
+                    extractTextTranslate.BeginAnimation(TranslateTransform.YProperty, extractTextMoveYAnim);
+                    ExtractTextButton.BeginAnimation(OpacityProperty, extractTextOpacityAnim);
                 }
 
                 // Animate close button with slight delay
@@ -343,6 +368,10 @@ namespace ZenLayer
             var screenshotScale = screenshotTransform?.Children[0] as ScaleTransform;
             var screenshotTranslate = screenshotTransform?.Children[1] as TranslateTransform;
 
+            var extractTextTransform = ExtractTextButton.RenderTransform as TransformGroup;
+            var extractTextScale = extractTextTransform?.Children[0] as ScaleTransform;
+            var extractTextTranslate = extractTextTransform?.Children[1] as TranslateTransform;
+
             var closeTransform = CloseButton.RenderTransform as TransformGroup;
             var closeScale = closeTransform?.Children[0] as ScaleTransform;
             var closeTranslate = closeTransform?.Children[1] as TranslateTransform;
@@ -353,9 +382,19 @@ namespace ZenLayer
             // Animate buttons back to center
             if (buttonScale != null && buttonTranslate != null)
             {
+                var buttonDistance = 70.0; // Match the distance used in ShowOverlay
+                
                 var buttonScaleAnim = new DoubleAnimation(1.0, 0.1, TimeSpan.FromMilliseconds(200));
-                var buttonMoveXAnim = new DoubleAnimation(0, -60, TimeSpan.FromMilliseconds(200));
-                var buttonMoveYAnim = new DoubleAnimation(0, 30, TimeSpan.FromMilliseconds(200));
+                var buttonMoveXAnim = new DoubleAnimation(0, -buttonDistance / 2, TimeSpan.FromMilliseconds(200))
+                {
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+
+                var buttonMoveYAnim = new DoubleAnimation(0, buttonDistance, TimeSpan.FromMilliseconds(200))
+                {
+                    EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                };
+
                 var buttonOpacityAnim = new DoubleAnimation(1.0, 0, TimeSpan.FromMilliseconds(200));
 
                 buttonScale.BeginAnimation(ScaleTransform.ScaleXProperty, buttonScaleAnim);
@@ -367,9 +406,11 @@ namespace ZenLayer
 
             if (screenshotScale != null && screenshotTranslate != null)
             {
+                var screenshotDistance = 60.0; // Match the distance used in ShowOverlay
+                
                 var screenshotScaleAnim = new DoubleAnimation(1.0, 0.1, TimeSpan.FromMilliseconds(200));
-                var screenshotMoveXAnim = new DoubleAnimation(0, -70, TimeSpan.FromMilliseconds(200));
-                var screenshotMoveYAnim = new DoubleAnimation(0, -10, TimeSpan.FromMilliseconds(200));
+                var screenshotMoveXAnim = new DoubleAnimation(0, -screenshotDistance, TimeSpan.FromMilliseconds(200));
+                var screenshotMoveYAnim = new DoubleAnimation(0, screenshotDistance / 2, TimeSpan.FromMilliseconds(200));
                 var screenshotOpacityAnim = new DoubleAnimation(1.0, 0, TimeSpan.FromMilliseconds(200));
 
                 screenshotScale.BeginAnimation(ScaleTransform.ScaleXProperty, screenshotScaleAnim);
@@ -379,11 +420,29 @@ namespace ZenLayer
                 ScreenshotButton.BeginAnimation(OpacityProperty, screenshotOpacityAnim);
             }
 
+            if (extractTextScale != null && extractTextTranslate != null)
+            {
+                var extractTextDistance = 70.0; // Match the distance used in ShowOverlay
+                
+                var extractTextScaleAnim = new DoubleAnimation(1.0, 0.1, TimeSpan.FromMilliseconds(200));
+                var extractTextMoveXAnim = new DoubleAnimation(0, -extractTextDistance, TimeSpan.FromMilliseconds(200));
+                var extractTextMoveYAnim = new DoubleAnimation(0, -extractTextDistance / 2, TimeSpan.FromMilliseconds(200));
+                var extractTextOpacityAnim = new DoubleAnimation(1.0, 0, TimeSpan.FromMilliseconds(200));
+
+                extractTextScale.BeginAnimation(ScaleTransform.ScaleXProperty, extractTextScaleAnim);
+                extractTextScale.BeginAnimation(ScaleTransform.ScaleYProperty, extractTextScaleAnim);
+                extractTextTranslate.BeginAnimation(TranslateTransform.XProperty, extractTextMoveXAnim);
+                extractTextTranslate.BeginAnimation(TranslateTransform.YProperty, extractTextMoveYAnim);
+                ExtractTextButton.BeginAnimation(OpacityProperty, extractTextOpacityAnim);
+            }
+
             if (closeScale != null && closeTranslate != null)
             {
+                var closeDistance = 50.0; // Match the distance used in ShowOverlay
+                
                 var closeScaleAnim = new DoubleAnimation(1.0, 0.1, TimeSpan.FromMilliseconds(200));
-                var closeMoveXAnim = new DoubleAnimation(0, 50, TimeSpan.FromMilliseconds(200));
-                var closeMoveYAnim = new DoubleAnimation(0, -50, TimeSpan.FromMilliseconds(200));
+                var closeMoveXAnim = new DoubleAnimation(0, closeDistance, TimeSpan.FromMilliseconds(200));
+                var closeMoveYAnim = new DoubleAnimation(0, -closeDistance, TimeSpan.FromMilliseconds(200));
                 var closeOpacityAnim = new DoubleAnimation(1.0, 0, TimeSpan.FromMilliseconds(200));
 
                 closeScale.BeginAnimation(ScaleTransform.ScaleXProperty, closeScaleAnim);
@@ -452,6 +511,77 @@ namespace ZenLayer
             }
         }
 
+        private async void ExtractTextButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Hide this overlay first
+                await HideOverlay();
+
+                // Small delay to ensure overlay is hidden
+                await Task.Delay(100);
+
+                // Create loading notification window
+                var loadingWindow = new LoadingNotificationWindow();
+                loadingWindow.Show();
+
+                // Open text selection window
+                var textSelectionWindow = new TextSelectionWindow(async (selectedBitmap) =>
+                {
+                    try
+                    {
+                        // Set the preview image in the loading window
+                        loadingWindow.SetPreviewImage(selectedBitmap);
+
+                        // Update loading window to show processing
+                        loadingWindow.UpdateStatus("Processing...");
+
+                        // Extract text using Gemini API
+                        var geminiExtractor = new GeminiTextExtractor();
+                        string extractedText = await geminiExtractor.ExtractTextFromImageAsync(selectedBitmap);
+
+                        // Copy to clipboard
+                        if (!string.IsNullOrWhiteSpace(extractedText))
+                        {
+                            System.Windows.Clipboard.SetText(extractedText);
+                            loadingWindow.UpdateStatus("Text copied to clipboard!", true);
+                        }
+                        else
+                        {
+                            loadingWindow.UpdateStatus("No text found in image", false);
+                        }
+
+                        // Auto-close loading window after 2 seconds
+                        await Task.Delay(2000);
+                        loadingWindow.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        loadingWindow.UpdateStatus($"Error: {ex.Message}", false);
+                        await Task.Delay(3000);
+                        loadingWindow.Close();
+                    }
+                    finally
+                    {
+                        selectedBitmap?.Dispose();
+                    }
+                });
+
+                textSelectionWindow.ShowDialog();
+
+                // If user cancelled selection, close loading window
+                if (!textSelectionWindow.WasSelectionMade)
+                {
+                    loadingWindow.Close();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to open text extraction tool: {ex.Message}",
+                    "Text Extraction Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void CloseButton_Click(object sender, RoutedEventArgs e)
         {
             await HideOverlay();
@@ -465,11 +595,13 @@ namespace ZenLayer
             var centralBounds = new Rect(Canvas.GetLeft(CentralBox), Canvas.GetTop(CentralBox), CentralBox.Width, CentralBox.Height);
             var buttonBounds = new Rect(Canvas.GetLeft(GrayscaleButton), Canvas.GetTop(GrayscaleButton), GrayscaleButton.Width, GrayscaleButton.Height);
             var screenshotBounds = new Rect(Canvas.GetLeft(ScreenshotButton), Canvas.GetTop(ScreenshotButton), ScreenshotButton.Width, ScreenshotButton.Height);
+            var extractTextBounds = new Rect(Canvas.GetLeft(ExtractTextButton), Canvas.GetTop(ExtractTextButton), ExtractTextButton.Width, ExtractTextButton.Height);
             var closeBounds = new Rect(Canvas.GetLeft(CloseButton), Canvas.GetTop(CloseButton), CloseButton.Width, CloseButton.Height);
 
             if (!centralBounds.Contains(clickPoint) &&
                 !buttonBounds.Contains(clickPoint) &&
                 !screenshotBounds.Contains(clickPoint) &&
+                !extractTextBounds.Contains(clickPoint) &&
                 !closeBounds.Contains(clickPoint))
             {
                 await HideOverlay();

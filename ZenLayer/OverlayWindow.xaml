@@ -55,6 +55,7 @@
 
             <!-- Grayscale Toggle Button - Positioned to the left -->
             <Button Name="GrayscaleButton" 
+                    Panel.ZIndex="3"
                     Canvas.Left="-80"
                     Canvas.Top="10"
                     Width="60" 
@@ -146,6 +147,7 @@
 
             <!-- Screenshot Button - Positioned to the top -->
             <Button Name="ScreenshotButton" 
+                    Panel.ZIndex="2"
                     Canvas.Left="10"
                     Canvas.Top="-80"
                     Width="60" 
@@ -235,6 +237,98 @@
                 </Button.RenderTransform>
             </Button>
 
+            <!-- Extract Text Button - Positioned to the bottom left -->
+            <Button Name="ExtractTextButton"
+                    Panel.ZIndex="1"
+                    Canvas.Left="-70"
+                    Canvas.Top="60"
+                    Width="60" 
+                    Height="60"
+                    Click="ExtractTextButton_Click"
+                    Cursor="Hand"
+                    RenderTransformOrigin="0.5,0.5"
+                    Opacity="0"
+                    Background="Transparent"
+                    BorderThickness="0">
+
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <!-- Drop Shadow -->
+                            <Ellipse Fill="Black" 
+                                     Opacity="0.3" 
+                                     Margin="3,3,0,0"/>
+
+                            <!-- Main Button Background -->
+                            <Ellipse Fill="#F39C12" 
+                                     Stroke="#E67E22" 
+                                     StrokeThickness="2"/>
+
+                            <!-- Highlight for hover effect -->
+                            <Ellipse Name="ExtractTextHighlight" 
+                                     Fill="White" 
+                                     Opacity="0"/>
+
+                            <!-- Content -->
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+
+                            <!-- Focus/Selection indicator (hidden) -->
+                            <Rectangle Fill="Transparent" 
+                                       Stroke="Transparent" 
+                                       StrokeThickness="0"/>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ExtractTextHighlight" Property="Opacity" Value="0.1"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="White" BlurRadius="10" ShadowDepth="0" Opacity="0.4"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ExtractTextHighlight" Property="Opacity" Value="0.2"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="Effect" Value="{x:Null}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </Button.Style>
+
+                <Button.Content>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="📄" 
+                                  FontSize="16" 
+                                  Foreground="White" 
+                                  HorizontalAlignment="Center"
+                                  Margin="0,0,0,2"/>
+                        <TextBlock Text="Text" 
+                                  FontSize="9" 
+                                  Foreground="White" 
+                                  HorizontalAlignment="Center"
+                                  FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Button.Content>
+
+                <Button.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform x:Name="ExtractTextButtonScale" ScaleX="0.1" ScaleY="0.1"/>
+                        <TranslateTransform x:Name="ExtractTextButtonTranslate" X="0" Y="0"/>
+                    </TransformGroup>
+                </Button.RenderTransform>
+            </Button>
+
             <!-- Close Button - Positioned to the right -->
             <Button Name="CloseButton" 
                     Canvas.Left="100"
@@ -288,5 +382,43 @@
                 </Button.RenderTransform>
             </Button>
         </Canvas>
+
+        <!-- Loading Notification -->
+        <Border Name="LoadingNotification"
+            Background="#2C3E50"
+            CornerRadius="20"
+            Padding="20,10"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Top"
+            Margin="0,50,0,0"
+            Visibility="Collapsed"
+            Opacity="0">
+
+            <Border.Effect>
+                <DropShadowEffect Color="Black" BlurRadius="10" ShadowDepth="3" Opacity="0.6"/>
+            </Border.Effect>
+
+            <StackPanel Orientation="Horizontal">
+                <!-- Loading Animation -->
+                <TextBlock Name="LoadingIcon" 
+                          Text="⟳" 
+                          FontSize="16" 
+                          Foreground="White" 
+                          Margin="0,0,10,0"
+                          VerticalAlignment="Center">
+                    <TextBlock.RenderTransform>
+                        <RotateTransform x:Name="LoadingRotation" CenterX="8" CenterY="8"/>
+                    </TextBlock.RenderTransform>
+                </TextBlock>
+
+                <!-- Loading Text -->
+                <TextBlock Name="LoadingText" 
+                          Text="Loading..." 
+                          FontSize="14" 
+                          Foreground="White" 
+                          VerticalAlignment="Center"
+                          FontWeight="SemiBold"/>
+            </StackPanel>
+        </Border>
     </Grid>
 </Window>
