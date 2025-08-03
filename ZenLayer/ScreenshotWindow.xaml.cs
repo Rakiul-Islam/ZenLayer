@@ -16,7 +16,7 @@ namespace ZenLayer
         private bool _isSelecting = false;
         private System.Windows.Point _startPoint;
         private System.Windows.Point _endPoint;
-        private System.Windows.Shapes.Rectangle _selectionRectangle; // Explicitly use WPF Rectangle
+        private System.Windows.Shapes.Rectangle _selectionRectangle;
         private Canvas _overlayCanvas;
         private Bitmap _screenCapture;
 
@@ -51,10 +51,27 @@ namespace ZenLayer
         [DllImport("gdi32.dll")]
         private static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
 
+        [DllImport("user32.dll")]
+        private static extern int GetSystemMetrics(int nIndex);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetProcessDPIAware();
+
+        [DllImport("user32.dll")]
+        private static extern bool GetCursorPos(out POINT lpPoint);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT
+        {
+            public int X;
+            public int Y;
+        }
+
         private const uint SRCCOPY = 0x00CC0020;
 
         public ScreenshotWindow()
         {
+            SetProcessDPIAware();
             InitializeComponent();
             CaptureScreen();
             SetupOverlay();
@@ -62,19 +79,22 @@ namespace ZenLayer
 
         private void CaptureScreen()
         {
-            // Get actual screen dimensions in pixels using Windows API
+            // Get virtual screen dimensions (all monitors combined)
+            int virtualScreenLeft = GetSystemMetrics(76);   // SM_XVIRTUALSCREEN
+            int virtualScreenTop = GetSystemMetrics(77);    // SM_YVIRTUALSCREEN
+            int virtualScreenWidth = GetSystemMetrics(78);  // SM_CXVIRTUALSCREEN
+            int virtualScreenHeight = GetSystemMetrics(79); // SM_CYVIRTUALSCREEN
+
             IntPtr hDesk = GetDesktopWindow();
             IntPtr hSrce = GetWindowDC(hDesk);
-            
-            // Get the actual screen dimensions in pixels
-            int screenWidth = GetDeviceCaps(hSrce, 8);  // HORZRES
-            int screenHeight = GetDeviceCaps(hSrce, 10); // VERTRES
-            
+
             IntPtr hDest = CreateCompatibleDC(hSrce);
-            IntPtr hBmp = CreateCompatibleBitmap(hSrce, screenWidth, screenHeight);
+            IntPtr hBmp = CreateCompatibleBitmap(hSrce, virtualScreenWidth, virtualScreenHeight);
             IntPtr hOldBmp = SelectObject(hDest, hBmp);
 
-            bool success = BitBlt(hDest, 0, 0, screenWidth, screenHeight, hSrce, 0, 0, SRCCOPY);
+            // Capture from virtual screen coordinates
+            bool success = BitBlt(hDest, 0, 0, virtualScreenWidth, virtualScreenHeight,
+                                 hSrce, virtualScreenLeft, virtualScreenTop, SRCCOPY);
 
             SelectObject(hDest, hOldBmp);
             DeleteDC(hDest);
@@ -90,25 +110,54 @@ namespace ZenLayer
 
         private void SetupOverlay()
         {
+            // Get virtual screen dimensions
+            int virtualScreenLeft = GetSystemMetrics(76);   // SM_XVIRTUALSCREEN
+            int virtualScreenTop = GetSystemMetrics(77);    // SM_YVIRTUALSCREEN
+            int virtualScreenWidth = GetSystemMetrics(78);  // SM_CXVIRTUALSCREEN
+            int virtualScreenHeight = GetSystemMetrics(79); // SM_CYVIRTUALSCREEN
+
             // Convert the captured bitmap to BitmapSource
             var screenshotSource = ConvertBitmapToBitmapSource(_screenCapture);
 
-            // Create overlay canvas
-            _overlayCanvas = new Canvas();
-
-            // Set the screenshot as the background
-            _overlayCanvas.Background = new ImageBrush(screenshotSource)
+            // Create overlay canvas with exact virtual screen dimensions
+            _overlayCanvas = new Canvas()
             {
-                Stretch = Stretch.Fill
+                Width = virtualScreenWidth,
+                Height = virtualScreenHeight,
+                ClipToBounds = true
             };
 
-            // Optional: Add a semi-transparent dimming rectangle
+            // Apply inverse DPI scaling to the entire canvas for proper alignment
+            var dpi = VisualTreeHelper.GetDpi(this);
+
+            // Create an Image control to display the screenshot
+            var screenshotImage = new System.Windows.Controls.Image
+            {
+                Source = screenshotSource,
+                Stretch = Stretch.None,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                VerticalAlignment = System.Windows.VerticalAlignment.Top,
+                //RenderTransform = new ScaleTransform(1 / dpi.DpiScaleX, 1 / dpi.DpiScaleY),
+                //RenderTransformOrigin = new System.Windows.Point(0, 0)
+            };
+
+            // Position the image exactly at 0,0 without any additional transforms
+            Canvas.SetLeft(screenshotImage, 0);
+            Canvas.SetTop(screenshotImage, 0);
+            _overlayCanvas.Children.Add(screenshotImage);
+
+            _overlayCanvas.RenderTransform = new ScaleTransform(1 / dpi.DpiScaleX, 1 / dpi.DpiScaleY);
+            _overlayCanvas.RenderTransformOrigin = new System.Windows.Point(0, 0);
+
+            // Add a semi-transparent dimming rectangle
             var dimmingRect = new System.Windows.Shapes.Rectangle
             {
-                Width = SystemParameters.PrimaryScreenWidth,
-                Height = SystemParameters.PrimaryScreenHeight,
+                Width = virtualScreenWidth,
+                Height = virtualScreenHeight,
                 Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(100, 0, 0, 0))
             };
+            Canvas.SetLeft(dimmingRect, 0);
+            Canvas.SetTop(dimmingRect, 0);
             _overlayCanvas.Children.Add(dimmingRect);
 
             // Create selection rectangle
@@ -125,7 +174,14 @@ namespace ZenLayer
 
             // Set window properties for fullscreen overlay
             WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
+
+            // Position window to cover entire virtual screen
+            Left = virtualScreenLeft;
+            Top = virtualScreenTop;
+            Width = virtualScreenWidth;
+            Height = virtualScreenHeight;
+            WindowState = WindowState.Normal;
+
             AllowsTransparency = true;
             Background = System.Windows.Media.Brushes.Transparent;
             Topmost = true;
@@ -137,7 +193,7 @@ namespace ZenLayer
             MouseLeftButtonUp += OnMouseLeftButtonUp;
             KeyDown += OnKeyDown;
 
-            // Set cursor - Fixed: Use System.Windows.Input.Cursors
+            // Set cursor
             Cursor = System.Windows.Input.Cursors.Cross;
         }
 
@@ -149,7 +205,7 @@ namespace ZenLayer
             _overlayCanvas.CaptureMouse();
         }
 
-        private void OnMouseMove(object sender, System.Windows.Input.MouseEventArgs e) // Explicitly use WPF MouseEventArgs
+        private void OnMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
             if (_isSelecting)
             {
@@ -166,27 +222,22 @@ namespace ZenLayer
                 _overlayCanvas.ReleaseMouseCapture();
                 _endPoint = e.GetPosition(_overlayCanvas);
 
-                // Check if we have a valid selection
                 double width = Math.Abs(_endPoint.X - _startPoint.X);
                 double height = Math.Abs(_endPoint.Y - _startPoint.Y);
 
-                if (width > 10 && height > 10) // Minimum size threshold
+                if (width > 10 && height > 10)
                 {
-                    // Hide the overlay first
                     this.Hide();
-
-                    // Capture the selected area
                     CaptureSelectedArea();
                 }
                 else
                 {
-                    // If selection is too small, just close
                     Close();
                 }
             }
         }
 
-        private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e) // Explicitly use WPF KeyEventArgs
+        private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
             {
@@ -211,26 +262,23 @@ namespace ZenLayer
         {
             try
             {
-                // Calculate selection bounds
                 double left = Math.Min(_startPoint.X, _endPoint.X);
                 double top = Math.Min(_startPoint.Y, _endPoint.Y);
                 double width = Math.Abs(_endPoint.X - _startPoint.X);
                 double height = Math.Abs(_endPoint.Y - _startPoint.Y);
 
-                // Convert to screen coordinates (account for DPI)
-                var dpiScale = VisualTreeHelper.GetDpi(this);
-                int x = (int)(left * dpiScale.DpiScaleX);
-                int y = (int)(top * dpiScale.DpiScaleY);
-                int w = (int)(width * dpiScale.DpiScaleX);
-                int h = (int)(height * dpiScale.DpiScaleY);
+                // Use coordinates as-is since the DPI transform on the canvas handles alignment
+                int x = (int)left;
+                int y = (int)top;
+                int w = (int)width;
+                int h = (int)height;
 
-                // Ensure bounds are within screen
+                // Ensure bounds are within captured bitmap
                 x = Math.Max(0, Math.Min(x, _screenCapture.Width - 1));
                 y = Math.Max(0, Math.Min(y, _screenCapture.Height - 1));
                 w = Math.Max(1, Math.Min(w, _screenCapture.Width - x));
                 h = Math.Max(1, Math.Min(h, _screenCapture.Height - y));
 
-                // Create cropped bitmap
                 var croppedBitmap = new Bitmap(w, h);
                 using (var graphics = Graphics.FromImage(croppedBitmap))
                 {
@@ -241,7 +289,6 @@ namespace ZenLayer
                 }
 
                 ShowPreviewWithSaveOption(croppedBitmap);
-
             }
             catch (Exception ex)
             {
@@ -333,7 +380,7 @@ namespace ZenLayer
                 Foreground = System.Windows.Media.Brushes.White,
                 BorderThickness = new Thickness(0),
                 Cursor = System.Windows.Input.Cursors.Hand,
-                FontSize = 14
+                FontSize = 14,
             };
 
             // Add the AI Analysis button after the copy button
@@ -365,7 +412,7 @@ namespace ZenLayer
 
             buttonPanel.Children.Add(saveButton);
             buttonPanel.Children.Add(copyButton);
-            buttonPanel.Children.Add(aiButton); // Add this line
+            buttonPanel.Children.Add(aiButton);
             buttonPanel.Children.Add(cancelButton);
             Grid.SetRow(buttonPanel, 2);
             mainGrid.Children.Add(buttonPanel);
@@ -420,7 +467,6 @@ namespace ZenLayer
                         "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             };
-
 
             // Copy button click handler
             copyButton.Click += (s, e) =>
@@ -506,24 +552,15 @@ namespace ZenLayer
 
                 // Save the bitmap
                 bitmap.Save(fullPath, ImageFormat.Png);
-
-                // REMOVE the MessageBox.Show here - success will be shown via button feedback
-                // System.Windows.MessageBox.Show($"Screenshot saved successfully!\n\nLocation: {fullPath}",
-                //     "Screenshot Saved", MessageBoxButton.OK, MessageBoxImage.Information);
-
-                // Optionally, you could update a status label or text block in the preview window
-                // to show the save path instead of using a popup
             }
             catch (Exception ex)
             {
-                // Keep error messages as they are important for troubleshooting
                 System.Windows.MessageBox.Show($"Failed to save screenshot: {ex.Message}",
                     "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                throw; // Re-throw so the calling method knows it failed
+                throw;
             }
         }
 
-        // 2. Add this method to your ScreenshotWindow class:
         private void OpenAIAnalysisWindow(Bitmap bitmap, BitmapSource bitmapSource)
         {
             var aiWindow = new AIAnalysisWindow(bitmap, bitmapSource);
