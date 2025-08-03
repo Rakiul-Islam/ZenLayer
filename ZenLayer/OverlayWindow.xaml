@@ -67,6 +67,32 @@
                     Background="Transparent"
                     BorderThickness="0">
 
+                <Button.ContextMenu>
+                    <ContextMenu Name="GrayscaleContextMenu">
+                        <MenuItem Header="Grayscale" Click="GrayscaleMenuItem_Click" Tag="0">
+                            <MenuItem.Icon>
+                                <TextBlock Text="⚫" FontSize="12" Foreground="Black"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Grayscale Inverted" Click="GrayscaleInvertedMenuItem_Click" Tag="2">
+                            <MenuItem.Icon>
+                                <TextBlock Text="◐" FontSize="12" Foreground="Black"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <MenuItem Header="Inverted" Click="InvertedMenuItem_Click" Tag="1">
+                            <MenuItem.Icon>
+                                <TextBlock Text="⚪" FontSize="12" Foreground="Black"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                        <Separator/>
+                        <MenuItem Header="Disable Filter" Click="DisableFilterMenuItem_Click">
+                            <MenuItem.Icon>
+                                <TextBlock Text="❌" FontSize="12" Foreground="Black"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
+                    </ContextMenu>
+                </Button.ContextMenu>
+
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
                         <Grid>
@@ -129,7 +155,7 @@
                                   Foreground="White" 
                                   HorizontalAlignment="Center"
                                   Margin="0,0,0,2"/>
-                        <TextBlock Text="Gray" 
+                        <TextBlock Text="Filter" 
                                   FontSize="9" 
                                   Foreground="White" 
                                   HorizontalAlignment="Center"
@@ -329,6 +355,98 @@
                 </Button.RenderTransform>
             </Button>
 
+            <!-- Color Picker Button - Positioned below the text button -->
+            <Button Name="ColorPickerButton" 
+                    Panel.ZIndex="0"
+                    Canvas.Left="-70"
+                    Canvas.Top="130"
+                    Width="60" 
+                    Height="60"
+                    Click="ColorPickerButton_Click"
+                    Cursor="Hand"
+                    RenderTransformOrigin="0.5,0.5"
+                    Opacity="0"
+                    Background="Transparent"
+                    BorderThickness="0">
+
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <!-- Drop Shadow -->
+                            <Ellipse Fill="Black" 
+                                     Opacity="0.3" 
+                                     Margin="3,3,0,0"/>
+
+                            <!-- Main Button Background -->
+                            <Ellipse Fill="#E67E22" 
+                                     Stroke="#D35400" 
+                                     StrokeThickness="2"/>
+
+                            <!-- Highlight for hover effect -->
+                            <Ellipse Name="ColorPickerHighlight" 
+                                     Fill="White" 
+                                     Opacity="0"/>
+
+                            <!-- Content -->
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                            VerticalAlignment="Center"/>
+
+                            <!-- Focus/Selection indicator (hidden) -->
+                            <Rectangle Fill="Transparent" 
+                                       Stroke="Transparent" 
+                                       StrokeThickness="0"/>
+                        </Grid>
+
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ColorPickerHighlight" Property="Opacity" Value="0.1"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="White" BlurRadius="10" ShadowDepth="0" Opacity="0.4"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ColorPickerHighlight" Property="Opacity" Value="0.2"/>
+                            </Trigger>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="Effect" Value="{x:Null}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+
+                <Button.Style>
+                    <Style TargetType="Button">
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                        <Setter Property="Background" Value="Transparent"/>
+                        <Setter Property="BorderThickness" Value="0"/>
+                    </Style>
+                </Button.Style>
+
+                <Button.Content>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="🎨" 
+                                  FontSize="16" 
+                                  Foreground="White" 
+                                  HorizontalAlignment="Center"
+                                  Margin="0,0,0,2"/>
+                        <TextBlock Text="Color" 
+                                  FontSize="9" 
+                                  Foreground="White" 
+                                  HorizontalAlignment="Center"
+                                  FontWeight="SemiBold"/>
+                    </StackPanel>
+                </Button.Content>
+
+                <Button.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform x:Name="ColorPickerButtonScale" ScaleX="0.1" ScaleY="0.1"/>
+                        <TranslateTransform x:Name="ColorPickerButtonTranslate" X="0" Y="0"/>
+                    </TransformGroup>
+                </Button.RenderTransform>
+            </Button>
+
             <!-- Close Button - Positioned to the right -->
             <Button Name="CloseButton" 
                     Canvas.Left="100"
@@ -381,6 +499,7 @@
                     </TransformGroup>
                 </Button.RenderTransform>
             </Button>
+
         </Canvas>
 
         <!-- Loading Notification -->

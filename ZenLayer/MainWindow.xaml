@@ -16,14 +16,31 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
+        <!-- Header with gear button -->
         <Border Grid.Row="0" Background="#2C3E50" Padding="20">
-            <TextBlock Text="Windows Grayscale Filter Control" 
-                      Foreground="White" 
-                      FontSize="18" 
-                      FontWeight="Bold"
-                      HorizontalAlignment="Center"
-                      TextWrapping="Wrap"/>
+            <DockPanel>
+                <TextBlock Text="ZenLayer" 
+                           Foreground="White" 
+                           FontSize="18" 
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"
+                           TextWrapping="Wrap"
+                           DockPanel.Dock="Left"/>
+                <Button Name="SettingsButton"
+                        Width="32"
+                        Height="32"
+                        Margin="0,0,0,0"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Click="SettingsButton_Click"
+                        ToolTip="Settings"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        DockPanel.Dock="Right"
+                        Cursor="Hand">
+                    <TextBlock Text="⚙" FontSize="20" Foreground="White" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                </Button>
+            </DockPanel>
         </Border>
 
         <!-- Main Content with ScrollViewer -->

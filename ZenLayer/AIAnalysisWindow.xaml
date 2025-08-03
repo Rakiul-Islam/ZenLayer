@@ -78,7 +78,7 @@
             <ColumnDefinition Width="2*" MinWidth="350"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Left Panel - Image Display -->
+        <!-- Left Panel - Image Display and Input Controls -->
         <Border Grid.Column="0" 
                 BorderBrush="#E1E8ED" 
                 BorderThickness="0,0,1,0" 
@@ -121,6 +121,29 @@
                               TextWrapping="Wrap"
                               HorizontalAlignment="Center"/>
                 </Border>
+
+                <!-- Input Controls (moved from right) -->
+                <TextBlock Text="Quick Prompts:" 
+                           Style="{StaticResource SubHeaderStyle}"
+                           Margin="0,20,0,0"/>
+                <WrapPanel Name="QuickPromptsPanel" Margin="0,0,0,15"/>
+
+                <TextBlock Text="Prompt:" 
+                           Style="{StaticResource SubHeaderStyle}"/>
+                <TextBox Name="PromptTextBox"
+                         Height="80"
+                         TextWrapping="Wrap"
+                         AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto"
+                         Text="Describe what you see in this image and provide any relevant insights."
+                         Margin="0,0,0,10"
+                         Padding="8"
+                         BorderBrush="#BDC3C7"
+                         Background="White"/>
+                <Button Name="AnalyzeButton"
+                        Content="🚀 Analyze with AI"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        HorizontalAlignment="Left"/>
             </StackPanel>
         </Border>
 
@@ -133,89 +156,53 @@
                       ResizeBehavior="PreviousAndNext"
                       ResizeDirection="Columns"/>
 
-        <!-- Right Panel - AI Interaction -->
-        <!-- RIGHT PANEL -->
+        <!-- Right Panel - AI Response Only -->
         <ScrollViewer Grid.Column="2" 
-              VerticalScrollBarVisibility="Auto"
-              HorizontalScrollBarVisibility="Disabled">
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
             <Grid Margin="20">
                 <Grid.RowDefinitions>
-                    <!-- All top content -->
                     <RowDefinition Height="Auto"/>
-                    <!-- The AI Response section -->
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Top part of the right panel -->
+                <!-- Header and Buttons -->
                 <StackPanel Grid.Row="0">
-                    <TextBlock Text="AI Analysis" 
-                       Style="{StaticResource SectionHeaderStyle}"/>
-
-                    <!-- Quick Prompts -->
-                    <TextBlock Text="Quick Prompts:" 
-                       Style="{StaticResource SubHeaderStyle}"/>
-
-                    <WrapPanel Name="QuickPromptsPanel" Margin="0,0,0,15"/>
-
-                    <!-- Custom Prompt -->
-                    <TextBlock Text="Prompt:" 
-                       Style="{StaticResource SubHeaderStyle}"/>
-
-                    <TextBox Name="PromptTextBox"
-                     Height="80"
-                     TextWrapping="Wrap"
-                     AcceptsReturn="True"
-                     VerticalScrollBarVisibility="Auto"
-                     Text="Describe what you see in this image and provide any relevant insights."
-                     Margin="0,0,0,10"
-                     Padding="8"
-                     BorderBrush="#BDC3C7"
-                     Background="White"/>
-
-                    <!-- Analyze Button -->
-                    <Button Name="AnalyzeButton"
-                    Content="🚀 Analyze with AI"
-                    Style="{StaticResource PrimaryButtonStyle}"
-                    HorizontalAlignment="Left"/>
-
-                    <!-- AI Response Header -->
                     <TextBlock Text="AI Response:" 
-                       Style="{StaticResource SubHeaderStyle}"/>
+                               Style="{StaticResource SectionHeaderStyle}"/>
 
-                    <!-- Copy / Save Buttons -->
                     <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
                         <Button Name="CopyResponseButton"
-                        Content="📋 Copy Response"
-                        Padding="12,6"
-                        Margin="0,0,10,0"
-                        Background="#3498DB"
-                        Foreground="White"
-                        BorderThickness="0"
-                        Cursor="Hand"
-                        IsEnabled="False"/>
+                                Content="📋 Copy Response"
+                                Padding="12,6"
+                                Margin="0,0,10,0"
+                                Background="#3498DB"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                IsEnabled="False"/>
                         <Button Name="SaveResponseButton"
-                        Content="💾 Save Response"
-                        Padding="12,6"
-                        Background="#27AE60"
-                        Foreground="White"
-                        BorderThickness="0"
-                        Cursor="Hand"
-                        IsEnabled="False"/>
+                                Content="💾 Save Response"
+                                Padding="12,6"
+                                Background="#27AE60"
+                                Foreground="White"
+                                BorderThickness="0"
+                                Cursor="Hand"
+                                IsEnabled="False"/>
                     </StackPanel>
                 </StackPanel>
 
-                <!-- AI Response Section - FULL HEIGHT -->
+                <!-- AI Response Section - Stretches to fill -->
                 <Border Grid.Row="1"
-                BorderBrush="#E1E8ED" 
-                BorderThickness="1" 
-                CornerRadius="4" 
-                Background="White"
-                Margin="0,0,0,15">
+                        BorderBrush="#E1E8ED" 
+                        BorderThickness="1" 
+                        CornerRadius="4" 
+                        Background="White"
+                        Margin="0,0,0,15">
                     <WebBrowser Name="ResponseWebBrowser"
-                        Margin="0"/>
+                                Margin="0"/>
                 </Border>
             </Grid>
         </ScrollViewer>
-
     </Grid>
 </Window>

@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace ZenLayer
@@ -18,9 +19,11 @@ namespace ZenLayer
         private readonly Action<Bitmap> _onSelectionComplete;
         public bool WasSelectionMade { get; private set; } = false;
 
-        // DPI scaling factors
         private double _dpiScaleX = 1.0;
         private double _dpiScaleY = 1.0;
+
+        private Bitmap _screenCapture; // Store the captured screen
+        private System.Windows.Shapes.Rectangle _selectionRectangle;
 
         [DllImport("user32.dll")]
         private static extern IntPtr GetDesktopWindow();
@@ -75,11 +78,11 @@ namespace ZenLayer
             InitializeComponent();
             _onSelectionComplete = onSelectionComplete;
 
-            // Initialize DPI scaling
             InitializeDpiScaling();
+            CaptureScreen(); // Capture the screen at startup
+            SetupOverlay();
 
-            // Capture mouse to ensure we get all mouse events
-            Mouse.Capture(this);
+            KeyDown += Window_KeyDown;
         }
 
         private void InitializeDpiScaling()
@@ -101,12 +104,90 @@ namespace ZenLayer
             }
         }
 
-        private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private void CaptureScreen()
         {
-            if (e.Key == Key.Escape)
+            IntPtr hDesk = GetDesktopWindow();
+            IntPtr hSrce = GetWindowDC(hDesk);
+
+            int screenWidth = GetDeviceCaps(hSrce, 8);  // HORZRES
+            int screenHeight = GetDeviceCaps(hSrce, 10); // VERTRES
+
+            IntPtr hDest = CreateCompatibleDC(hSrce);
+            IntPtr hBmp = CreateCompatibleBitmap(hSrce, screenWidth, screenHeight);
+            IntPtr hOldBmp = SelectObject(hDest, hBmp);
+
+            bool success = BitBlt(hDest, 0, 0, screenWidth, screenHeight, hSrce, 0, 0, SRCCOPY);
+
+            SelectObject(hDest, hOldBmp);
+            DeleteDC(hDest);
+            ReleaseDC(hDesk, hSrce);
+
+            if (success)
             {
-                CancelSelection();
+                _screenCapture = System.Drawing.Image.FromHbitmap(hBmp);
             }
+
+            DeleteObject(hBmp);
+        }
+
+        private BitmapSource ConvertBitmapToBitmapSource(Bitmap bitmap)
+        {
+            var hBitmap = bitmap.GetHbitmap();
+            try
+            {
+                return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                    hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+            }
+            finally
+            {
+                DeleteObject(hBitmap);
+            }
+        }
+
+        private void SetupOverlay()
+        {
+            // Convert the captured bitmap to BitmapSource
+            var screenshotSource = ConvertBitmapToBitmapSource(_screenCapture);
+
+            // Set the screenshot as the background of the selection canvas
+            SelectionCanvas.Background = new ImageBrush(screenshotSource)
+            {
+                Stretch = Stretch.Fill
+            };
+
+            // Optional: Add a semi-transparent dimming rectangle
+            var dimmingRect = new System.Windows.Shapes.Rectangle
+            {
+                Width = SystemParameters.PrimaryScreenWidth,
+                Height = SystemParameters.PrimaryScreenHeight,
+                Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(100, 0, 0, 0))
+            };
+            SelectionCanvas.Children.Add(dimmingRect);
+
+            // Create and add the selection rectangle
+            _selectionRectangle = new System.Windows.Shapes.Rectangle
+            {
+                Stroke = System.Windows.Media.Brushes.Red,
+                StrokeThickness = 2,
+                Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 255, 255, 255)),
+                Visibility = Visibility.Collapsed
+            };
+            SelectionCanvas.Children.Add(_selectionRectangle);
+
+            // Attach mouse event handlers to the canvas
+            SelectionCanvas.MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
+            SelectionCanvas.MouseMove += Overlay_MouseMove;
+            SelectionCanvas.MouseLeftButtonUp += Overlay_MouseLeftButtonUp;
+
+            // Set window properties for fullscreen overlay
+            WindowStyle = WindowStyle.None;
+            WindowState = WindowState.Maximized;
+            AllowsTransparency = true;
+            Background = System.Windows.Media.Brushes.Transparent;
+            Topmost = true;
+            ShowInTaskbar = false;
+
+            Cursor = System.Windows.Input.Cursors.Cross;
         }
 
         private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -115,16 +196,8 @@ namespace ZenLayer
             {
                 _startPoint = e.GetPosition(SelectionCanvas);
                 _isSelecting = true;
-                SelectionRectangle.Visibility = Visibility.Visible;
-
-                // Hide instructions when selection starts
-                InstructionsPanel.Visibility = Visibility.Collapsed;
-
-                // Update cursor
-                this.Cursor = System.Windows.Input.Cursors.Cross;
-
-                // Capture mouse
-                Mouse.Capture(OverlayRect);
+                _selectionRectangle.Visibility = Visibility.Visible;
+                SelectionCanvas.CaptureMouse();
             }
         }
 
@@ -134,12 +207,6 @@ namespace ZenLayer
             {
                 _endPoint = e.GetPosition(SelectionCanvas);
                 UpdateSelectionRectangle();
-
-                // Update coordinates display for debugging (optional)
-                if (CoordinatesDisplay.Visibility == Visibility.Visible)
-                {
-                    CoordinatesDisplay.Text = $"Start: ({_startPoint.X:F0}, {_startPoint.Y:F0}) End: ({_endPoint.X:F0}, {_endPoint.Y:F0})";
-                }
             }
         }
 
@@ -148,22 +215,20 @@ namespace ZenLayer
             if (_isSelecting)
             {
                 _isSelecting = false;
-                Mouse.Capture(null);
+                SelectionCanvas.ReleaseMouseCapture();
+                _endPoint = e.GetPosition(SelectionCanvas);
 
-                // Check if selection is valid (minimum size)
-                var width = Math.Abs(_endPoint.X - _startPoint.X);
-                var height = Math.Abs(_endPoint.Y - _startPoint.Y);
+                double width = Math.Abs(_endPoint.X - _startPoint.X);
+                double height = Math.Abs(_endPoint.Y - _startPoint.Y);
 
                 if (width > 10 && height > 10)
                 {
+                    this.Hide();
                     CaptureSelectedArea();
                 }
                 else
                 {
-                    // Selection too small, cancel
-                    System.Windows.MessageBox.Show("Selection area is too small. Please select a larger area.",
-                        "Selection Too Small", MessageBoxButton.OK, MessageBoxImage.Information);
-                    CancelSelection();
+                    Close();
                 }
             }
         }
@@ -175,131 +240,72 @@ namespace ZenLayer
             double width = Math.Abs(_endPoint.X - _startPoint.X);
             double height = Math.Abs(_endPoint.Y - _startPoint.Y);
 
-            // Use Canvas positioning instead of Margin
-            Canvas.SetLeft(SelectionRectangle, left);
-            Canvas.SetTop(SelectionRectangle, top);
-            SelectionRectangle.Width = width;
-            SelectionRectangle.Height = height;
+            Canvas.SetLeft(_selectionRectangle, left);
+            Canvas.SetTop(_selectionRectangle, top);
+            _selectionRectangle.Width = width;
+            _selectionRectangle.Height = height;
         }
 
         private void CaptureSelectedArea()
         {
             try
             {
-                // Calculate selection bounds
                 double left = Math.Min(_startPoint.X, _endPoint.X);
                 double top = Math.Min(_startPoint.Y, _endPoint.Y);
                 double width = Math.Abs(_endPoint.X - _startPoint.X);
                 double height = Math.Abs(_endPoint.Y - _startPoint.Y);
 
-                // Convert WPF coordinates to screen coordinates with proper DPI scaling
-                // Add 0.5 and use Math.Round for more accurate pixel alignment
-                int screenLeft = (int)Math.Round(left * _dpiScaleX);
-                int screenTop = (int)Math.Round(top * _dpiScaleY);
-                int screenWidth = (int)Math.Round(width * _dpiScaleX);
-                int screenHeight = (int)Math.Round(height * _dpiScaleY);
+                int x = (int)(left * _dpiScaleX);
+                int y = (int)(top * _dpiScaleY);
+                int w = (int)(width * _dpiScaleX);
+                int h = (int)(height * _dpiScaleY);
 
-                // Ensure dimensions are positive and within reasonable bounds
-                if (screenWidth <= 0) screenWidth = 1;
-                if (screenHeight <= 0) screenHeight = 1;
+                x = Math.Max(0, Math.Min(x, _screenCapture.Width - 1));
+                y = Math.Max(0, Math.Min(y, _screenCapture.Height - 1));
+                w = Math.Max(1, Math.Min(w, _screenCapture.Width - x));
+                h = Math.Max(1, Math.Min(h, _screenCapture.Height - y));
 
-                // Capture the screen area
-                Bitmap screenshot = CaptureScreen(screenLeft, screenTop, screenWidth, screenHeight);
-
-                if (screenshot != null)
+                var croppedBitmap = new Bitmap(w, h);
+                using (var graphics = Graphics.FromImage(croppedBitmap))
                 {
-                    WasSelectionMade = true;
-                    this.Hide(); // Hide the selection window
-
-                    // Call the callback with the captured bitmap
-                    _onSelectionComplete?.Invoke(screenshot);
-
-                    // Close the window
-                    this.Close();
+                    graphics.DrawImage(_screenCapture,
+                        new System.Drawing.Rectangle(0, 0, w, h),
+                        new System.Drawing.Rectangle(x, y, w, h),
+                        GraphicsUnit.Pixel);
                 }
-                else
-                {
-                    System.Windows.MessageBox.Show("Failed to capture the selected area.",
-                        "Capture Failed", MessageBoxButton.OK, MessageBoxImage.Error);
-                    CancelSelection();
-                }
+
+                WasSelectionMade = true;
+                _onSelectionComplete?.Invoke(croppedBitmap);
+                this.Close();
             }
             catch (Exception ex)
             {
                 System.Windows.MessageBox.Show($"Error capturing selected area: {ex.Message}",
                     "Capture Error", MessageBoxButton.OK, MessageBoxImage.Error);
-                CancelSelection();
+                Close();
             }
         }
 
-        private Bitmap CaptureScreen(int x, int y, int width, int height)
+        private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            IntPtr desktopDC = IntPtr.Zero;
-            IntPtr memoryDC = IntPtr.Zero;
-            IntPtr bitmap = IntPtr.Zero;
-            IntPtr oldBitmap = IntPtr.Zero;
-
-            try
+            if (e.Key == Key.Escape)
             {
-                // Get the device context for the entire screen
-                desktopDC = GetWindowDC(GetDesktopWindow());
-                if (desktopDC == IntPtr.Zero)
-                    return null;
-
-                // Create a compatible DC and bitmap
-                memoryDC = CreateCompatibleDC(desktopDC);
-                if (memoryDC == IntPtr.Zero)
-                    return null;
-
-                bitmap = CreateCompatibleBitmap(desktopDC, width, height);
-                if (bitmap == IntPtr.Zero)
-                    return null;
-
-                oldBitmap = SelectObject(memoryDC, bitmap);
-
-                // Copy the screen content to our bitmap
-                bool success = BitBlt(memoryDC, 0, 0, width, height, desktopDC, x, y, SRCCOPY);
-
-                if (success)
+                // Release mouse capture if active
+                if (_isSelecting)
                 {
-                    // Convert to managed bitmap
-                    Bitmap result = System.Drawing.Image.FromHbitmap(bitmap);
-                    return result;
+                    _isSelecting = false;
+                    SelectionCanvas.ReleaseMouseCapture();
                 }
-
-                return null;
+                
+                // Mark the event as handled and close
+                e.Handled = true;
+                Close();
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Screen capture error: {ex.Message}");
-                return null;
-            }
-            finally
-            {
-                // Clean up resources
-                if (oldBitmap != IntPtr.Zero)
-                    SelectObject(memoryDC, oldBitmap);
-
-                if (bitmap != IntPtr.Zero)
-                    DeleteObject(bitmap);
-
-                if (memoryDC != IntPtr.Zero)
-                    DeleteDC(memoryDC);
-
-                if (desktopDC != IntPtr.Zero)
-                    ReleaseDC(GetDesktopWindow(), desktopDC);
-            }
-        }
-
-        private void CancelSelection()
-        {
-            WasSelectionMade = false;
-            this.Close();
         }
 
         protected override void OnClosed(EventArgs e)
         {
-            Mouse.Capture(null);
+            _screenCapture?.Dispose();
             base.OnClosed(e);
         }
     }

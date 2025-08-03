@@ -1,0 +1,23 @@
+﻿<Window x:Class="ZenLayer.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Height="450" Width="400">
+    <StackPanel Margin="20" VerticalAlignment="Center">
+        <TextBlock Text="Configure Hotkeys" FontWeight="Bold" FontSize="16" Margin="0,0,0,20"/>
+        
+        <TextBlock Text="Open Overlay:"/>
+        <TextBox Name="OverlayHotkeyBox" PreviewKeyDown="HotkeyBox_PreviewKeyDown" Tag="Overlay" Margin="0,0,0,10" IsReadOnly="True"/>
+         
+        <TextBlock Text="Take Screenshot:"/>
+        <TextBox Name="ScreenshotHotkeyBox" PreviewKeyDown="HotkeyBox_PreviewKeyDown" Tag="Screenshot" Margin="0,0,0,10" IsReadOnly="True"/>
+        
+        <TextBlock Text="Extract Text:"/>
+        <TextBox Name="ExtractTextHotkeyBox" PreviewKeyDown="HotkeyBox_PreviewKeyDown" Tag="ExtractText" Margin="0,0,0,10" IsReadOnly="True"/>
+        
+        <TextBlock Text="Color Picker:"/>
+        <TextBox Name="ColorPickerHotkeyBox" PreviewKeyDown="HotkeyBox_PreviewKeyDown" Tag="ColorPicker" Margin="0,0,0,20" IsReadOnly="True"/>
+        
+        <Button Content="Save" Click="SaveButton_Click" Width="100" HorizontalAlignment="Center"/>
+        <TextBlock Name="ErrorText" Foreground="Red" Margin="0,10,0,0"/>
+    </StackPanel>
+</Window>

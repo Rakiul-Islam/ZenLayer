@@ -46,5 +46,65 @@ namespace ZenLayer.Properties {
                 this["MinimizeToTray"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string OverlayHotkey {
+            get {
+                return ((string)(this["OverlayHotkey"]));
+            }
+            set {
+                this["OverlayHotkey"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string GrayscaleHotkey {
+            get {
+                return ((string)(this["GrayscaleHotkey"]));
+            }
+            set {
+                this["GrayscaleHotkey"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ScreenshotHotkey {
+            get {
+                return ((string)(this["ScreenshotHotkey"]));
+            }
+            set {
+                this["ScreenshotHotkey"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ExtractTextHotkey {
+            get {
+                return ((string)(this["ExtractTextHotkey"]));
+            }
+            set {
+                this["ExtractTextHotkey"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ColorPickerHotkey {
+            get {
+                return ((string)(this["ColorPickerHotkey"]));
+            }
+            set {
+                this["ColorPickerHotkey"] = value;
+            }
+        }
     }
 }

@@ -5,6 +5,13 @@ using System.Threading.Tasks;
 
 namespace ZenLayer
 {
+    public enum ColorFilterType
+    {
+        Grayscale = 0,
+        Inverted = 1,
+        GrayscaleInverted = 2
+    }
+
     public class ColorFilterManager
     {
         private const string REGISTRY_PATH = @"SOFTWARE\Microsoft\ColorFiltering";
@@ -96,25 +103,138 @@ namespace ZenLayer
             }
         }
 
+        public ColorFilterType? GetCurrentFilterType()
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(REGISTRY_PATH);
+                if (key == null) return null;
+
+                var active = key.GetValue(ACTIVE_VALUE);
+                var filterType = key.GetValue(FILTER_TYPE_VALUE);
+
+                if (active is int activeInt && activeInt == 1 && filterType is int filterTypeInt)
+                {
+                    return (ColorFilterType)filterTypeInt;
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public bool IsColorFilterActive()
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(REGISTRY_PATH);
+                if (key == null) return false;
+
+                var active = key.GetValue(ACTIVE_VALUE);
+                return active is int activeInt && activeInt == 1;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        public async Task<bool> SetColorFilterAsync(ColorFilterType filterType)
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    var currentFilter = GetCurrentFilterType();
+                    bool isCurrentlyActive = IsColorFilterActive();
+
+                    // If the same filter is already active, do nothing
+                    if (isCurrentlyActive && currentFilter == filterType)
+                    {
+                        return true;
+                    }
+
+                    // If a different filter is active, we need to turn it off first
+                    if (isCurrentlyActive && currentFilter != filterType)
+                    {
+                        // Turn off current filter
+                        bool disableSuccess = SendWinCtrlC();
+                        if (!disableSuccess) return false;
+
+                        System.Threading.Thread.Sleep(500); // Give Windows time to process
+                        
+                        // Verify it's turned off
+                        if (IsColorFilterActive()) return false;
+                    }
+
+                    // Set the desired filter type in registry
+                    using var key = Registry.CurrentUser.CreateSubKey(REGISTRY_PATH);
+                    if (key == null) return false;
+
+                    key.SetValue(FILTER_TYPE_VALUE, (int)filterType, RegistryValueKind.DWord);
+                    key.SetValue(ACTIVE_VALUE, 0, RegistryValueKind.DWord); // Set to inactive first
+
+                    System.Threading.Thread.Sleep(100); // Brief pause
+
+                    // Now turn on the filter with the new type
+                    bool enableSuccess = SendWinCtrlC();
+                    if (!enableSuccess) return false;
+
+                    System.Threading.Thread.Sleep(500); // Give Windows time to process
+
+                    // Verify the correct filter is now active
+                    var newCurrentFilter = GetCurrentFilterType();
+                    return IsColorFilterActive() && newCurrentFilter == filterType;
+                }
+                catch
+                {
+                    return false;
+                }
+            });
+        }
+
+        public async Task<bool> DisableColorFilterAsync()
+        {
+            return await Task.Run(() =>
+            {
+                try
+                {
+                    if (!IsColorFilterActive()) return true;
+
+                    bool success = SendWinCtrlC();
+
+                    if (success)
+                    {
+                        System.Threading.Thread.Sleep(300);
+                        return !IsColorFilterActive();
+                    }
+
+                    return false;
+                }
+                catch
+                {
+                    return false;
+                }
+            });
+        }
+
         public async Task<bool> ToggleGrayscaleAsync()
         {
             return await Task.Run(() =>
             {
                 try
                 {
-                    bool currentState = IsGrayscaleEnabled();
-
-                    // Use the keyboard shortcut method as it's most reliable
+                    // Just send the shortcut once and return success
                     bool success = SendWinCtrlC();
 
                     if (success)
                     {
                         // Wait a moment for Windows to process
                         System.Threading.Thread.Sleep(300);
-
-                        // Verify the state changed
-                        bool newState = IsGrayscaleEnabled();
-                        return newState != currentState;
+                        return true;
                     }
 
                     return false;

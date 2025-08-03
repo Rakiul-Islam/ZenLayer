@@ -1,13 +1,16 @@
 ﻿using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Forms;
+using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -27,6 +30,7 @@ namespace ZenLayer
         private GlobalHotkeyManager? _hotkeyManager;
         private OverlayWindow? _overlayWindow;
         private bool _overlayVisible = false;
+        private bool _isToggleInProgress = false; // Add this field to your MainWindow class
 
         // Screenshot capture functionality
         [DllImport("user32.dll")]
@@ -93,51 +97,270 @@ namespace ZenLayer
         {
             base.OnSourceInitialized(e);
 
-            // Register global hotkey
+            // Initialize the hotkey manager with this window
             if (_hotkeyManager != null)
             {
-                bool registered = _hotkeyManager.RegisterHotkey(this);
-                if (!registered)
+                bool initialized = _hotkeyManager.Initialize(this);
+                if (!initialized)
                 {
                     System.Windows.MessageBox.Show(
-                        "Failed to register global hotkey Win+Ctrl+X. Another application might be using it.",
-                        "Hotkey Registration Failed",
+                        "Failed to initialize hotkey manager.",
+                        "Hotkey Manager Error",
                         MessageBoxButton.OK,
                         MessageBoxImage.Warning);
+                }
+                else
+                {
+                    // Load and register saved hotkeys
+                    LoadAndRegisterHotkeys();
                 }
             }
         }
 
-        private async void OnGlobalHotkeyPressed(object? sender, EventArgs e)
+        private void LoadAndRegisterHotkeys()
         {
+            var savedHotkeys = new Dictionary<string, (Key key, ModifierKeys modifiers)>();
+
+            // Load hotkeys from settings
             try
             {
-                if (_overlayVisible)
+                if (!string.IsNullOrEmpty(Properties.Settings.Default.OverlayHotkey))
                 {
-                    // Hide overlay
-                    if (_overlayWindow != null)
-                    {
-                        await _overlayWindow.HideOverlay();
-                        _overlayVisible = false;
-                    }
+                    var parsed = ParseHotkeyString(Properties.Settings.Default.OverlayHotkey);
+                    if (parsed.HasValue)
+                        savedHotkeys["Overlay"] = parsed.Value;
                 }
-                else
+
+                if (!string.IsNullOrEmpty(Properties.Settings.Default.ScreenshotHotkey))
                 {
-                    // Show overlay
-                    if (_overlayWindow == null)
+                    var parsed = ParseHotkeyString(Properties.Settings.Default.ScreenshotHotkey);
+                    if (parsed.HasValue)
+                        savedHotkeys["Screenshot"] = parsed.Value;
+                }
+
+                if (!string.IsNullOrEmpty(Properties.Settings.Default.ExtractTextHotkey))
+                {
+                    var parsed = ParseHotkeyString(Properties.Settings.Default.ExtractTextHotkey);
+                    if (parsed.HasValue)
+                        savedHotkeys["ExtractText"] = parsed.Value;
+                }
+
+                // Add ColorPicker hotkey loading
+                if (!string.IsNullOrEmpty(Properties.Settings.Default.ColorPickerHotkey))
+                {
+                    var parsed = ParseHotkeyString(Properties.Settings.Default.ColorPickerHotkey);
+                    if (parsed.HasValue)
+                        savedHotkeys["ColorPicker"] = parsed.Value;
+                }
+
+                if (savedHotkeys.Any() && _hotkeyManager != null)
+                {
+                    bool success = _hotkeyManager.RegisterHotkeys(savedHotkeys);
+                    if (!success)
                     {
-                        _overlayWindow = new OverlayWindow(_colorFilterManager);
+                        System.Windows.MessageBox.Show(
+                            "Some hotkeys could not be registered. They may be in use by other applications.",
+                            "Hotkey Registration Warning",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
                     }
-                    await _overlayWindow.ShowOverlay();
-                    _overlayVisible = true;
                 }
             }
             catch (Exception ex)
             {
-                // Log error or handle silently
-                System.Diagnostics.Debug.WriteLine($"Overlay toggle error: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error loading hotkeys: {ex.Message}");
             }
         }
+
+        private async Task TakeScreenshot()
+        {
+            try
+            {
+                // Open screenshot selection window without minimizing
+                var screenshotWindow = new ScreenshotWindow();
+                screenshotWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to open screenshot tool: {ex.Message}",
+                    "Screenshot Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private (Key key, ModifierKeys modifiers)? ParseHotkeyString(string hotkeyString)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(hotkeyString))
+                    return null;
+
+                var parts = hotkeyString.Split(new[] { " + " }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0)
+                    return null;
+
+                ModifierKeys modifiers = ModifierKeys.None;
+                Key key = Key.None;
+
+                foreach (var part in parts)
+                {
+                    switch (part.Trim().ToLower())
+                    {
+                        case "ctrl":
+                            modifiers |= ModifierKeys.Control;
+                            break;
+                        case "alt":
+                            modifiers |= ModifierKeys.Alt;
+                            break;
+                        case "shift":
+                            modifiers |= ModifierKeys.Shift;
+                            break;
+                        case "win":
+                            modifiers |= ModifierKeys.Windows;
+                            break;
+                        default:
+                            if (Enum.TryParse<Key>(part.Trim(), true, out var parsedKey))
+                            {
+                                key = parsedKey;
+                            }
+                            break;
+                    }
+                }
+
+                return key != Key.None ? (key, modifiers) : null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private async void OnGlobalHotkeyPressed(object? sender, GlobalHotkeyManager.HotkeyPressedEventArgs e)
+        {
+            if (_isToggleInProgress)
+                return; // Prevent re-entrancy
+
+            try
+            {
+                _isToggleInProgress = true;
+
+                switch (e.Action)
+                {
+                    case "Overlay":
+                        await HandleOverlayHotkey();
+                        break;
+                    case "Screenshot":
+                        await HandleScreenshotHotkey();
+                        break;
+                    case "ExtractText":
+                        await HandleExtractTextHotkey();
+                        break;
+                    case "ColorPicker": // Add this case
+                        await HandleColorPickerHotkey();
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Hotkey handling error: {ex.Message}");
+            }
+            finally
+            {
+                _isToggleInProgress = false;
+            }
+        }
+
+        private async Task HandleOverlayHotkey()
+        {
+            if (_overlayVisible)
+            {
+                // Hide overlay
+                if (_overlayWindow != null)
+                {
+                    await _overlayWindow.HideOverlay();
+                    _overlayVisible = false;
+                }
+            }
+            else
+            {
+                // Show overlay
+                if (_overlayWindow == null)
+                {
+                    _overlayWindow = new OverlayWindow(_colorFilterManager);
+                }
+                await _overlayWindow.ShowOverlay();
+                _overlayVisible = true;
+            }
+        }
+
+        private async Task HandleScreenshotHotkey()
+        {
+            await Task.Run(() =>
+            {
+                Dispatcher.Invoke(async () =>
+                {
+                    await TakeScreenshot(); // Use the new method without minimization
+                });
+            });
+        }
+
+        private async Task HandleExtractTextHotkey()
+        {
+            await Task.Run(() =>
+            {
+                Dispatcher.Invoke(async () =>
+                {
+                    // Show loading notification window
+                    var loadingWindow = new LoadingNotificationWindow();
+                    loadingWindow.Show();
+
+                    // Show text selection window and handle extraction
+                    var textSelectionWindow = new TextSelectionWindow(async (selectedBitmap) =>
+                    {
+                        try
+                        {
+                            loadingWindow.SetPreviewImage(selectedBitmap);
+                            loadingWindow.UpdateStatus("Processing...");
+
+                            var geminiExtractor = new GeminiTextExtractor();
+                            string extractedText = await geminiExtractor.ExtractTextFromImageAsync(selectedBitmap);
+
+                            if (!string.IsNullOrWhiteSpace(extractedText))
+                            {
+                                System.Windows.Clipboard.SetText(extractedText);
+                                loadingWindow.UpdateStatus("Text copied to clipboard!", true);
+                            }
+                            else
+                            {
+                                loadingWindow.UpdateStatus("No text found in image", false);
+                            }
+
+                            await Task.Delay(2000);
+                            loadingWindow.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            loadingWindow.UpdateStatus($"Error: {ex.Message}", false);
+                            await Task.Delay(3000);
+                            loadingWindow.Close();
+                        }
+                        finally
+                        {
+                            selectedBitmap?.Dispose();
+                        }
+                    });
+
+                    textSelectionWindow.ShowDialog();
+
+                    // If user cancelled selection, close loading window
+                    if (!textSelectionWindow.WasSelectionMade)
+                    {
+                        loadingWindow.Close();
+                    }
+                });
+            });
+        }
+
+
 
         private void InitializeSystemTray()
         {
@@ -153,6 +376,8 @@ namespace ZenLayer
             var contextMenu = new ContextMenuStrip();
             contextMenu.Items.Add("Show", null, (s, e) => ShowWindow());
             contextMenu.Items.Add("Toggle Grayscale", null, async (s, e) => await ToggleGrayscale());
+            contextMenu.Items.Add("-");
+            contextMenu.Items.Add("Settings", null, (s, e) => SettingsButton_Click(null, null));
             contextMenu.Items.Add("-");
             contextMenu.Items.Add("Exit", null, (s, e) => ExitApplication());
 
@@ -174,91 +399,36 @@ namespace ZenLayer
 
         private async Task ToggleGrayscale()
         {
+            if (_isToggleInProgress)
+                return;
+
             try
             {
-                // Update button to show loading state
+                _isToggleInProgress = true;
                 SetButtonLoadingState(true);
 
-                // First check if the keyboard shortcut is enabled
-                if (!_colorFilterManager.IsShortcutEnabled())
-                {
-                    var enableResult = System.Windows.MessageBox.Show(
-                        "The Windows+Ctrl+C keyboard shortcut for color filters appears to be disabled.\n\n" +
-                        "Would you like me to try to enable it, or open Settings for manual configuration?",
-                        "Shortcut Not Enabled",
-                        MessageBoxButton.YesNoCancel,
-                        MessageBoxImage.Question);
+                bool initialState = _colorFilterManager.IsGrayscaleEnabled();
 
-                    if (enableResult == MessageBoxResult.Yes)
-                    {
-                        _colorFilterManager.EnableShortcut();
-                        System.Windows.MessageBox.Show(
-                            "Shortcut enabled. You may need to restart the application or log off and back on for it to take effect.",
-                            "Shortcut Enabled",
-                            MessageBoxButton.OK,
-                            MessageBoxImage.Information);
-                    }
-                    else if (enableResult == MessageBoxResult.No)
-                    {
-                        try
-                        {
-                            Process.Start(new ProcessStartInfo
-                            {
-                                FileName = "ms-settings:easeofaccess-colorfilter",
-                                UseShellExecute = true
-                            });
-                            return;
-                        }
-                        catch
-                        {
-                            System.Windows.MessageBox.Show(
-                                "Please go to Settings > Accessibility > Color filters and enable the keyboard shortcut",
-                                "Manual Configuration Required",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information);
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        return; // Cancel
-                    }
+                bool success;
+                if (!initialState)
+                {
+                    // Always set to Grayscale when enabling
+                    success = await _colorFilterManager.SetColorFilterAsync(ColorFilterType.Grayscale);
+                }
+                else
+                {
+                    // Disable the filter
+                    success = await _colorFilterManager.DisableColorFilterAsync();
                 }
 
-                // Try the enhanced toggle method
-                bool success = await _colorFilterManager.EnhancedToggleAsync();
+                await Task.Delay(1000);
 
-                if (!success)
+                bool finalState = _colorFilterManager.IsGrayscaleEnabled();
+                bool stateChanged = initialState != finalState;
+
+                if (!success && !stateChanged)
                 {
-                    var result = System.Windows.MessageBox.Show(
-                        "The automatic toggle didn't work. This could be because:\n\n" +
-                        "• The keyboard shortcut is disabled in Windows Settings\n" +
-                        "• Another application is blocking the input\n" +
-                        "• Windows needs administrator permissions\n\n" +
-                        "Would you like to open Windows Settings to configure it manually?",
-                        "Toggle Failed",
-                        MessageBoxButton.YesNo,
-                        MessageBoxImage.Warning);
-
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        try
-                        {
-                            Process.Start(new ProcessStartInfo
-                            {
-                                FileName = "ms-settings:easeofaccess-colorfilter",
-                                UseShellExecute = true
-                            });
-                        }
-                        catch
-                        {
-                            System.Windows.MessageBox.Show(
-                                "Please manually navigate to:\nSettings > Accessibility > Color filters",
-                                "Open Settings Manually",
-                                MessageBoxButton.OK,
-                                MessageBoxImage.Information);
-                        }
-                    }
+                    ShowToggleError();
                 }
             }
             catch (Exception ex)
@@ -271,9 +441,42 @@ namespace ZenLayer
             }
             finally
             {
+                _isToggleInProgress = false;
                 SetButtonLoadingState(false);
-                // Force immediate status update
                 UpdateStatus(null, null);
+            }
+        }
+
+        private void ShowToggleError()
+        {
+            var result = System.Windows.MessageBox.Show(
+                "The automatic toggle didn't work. This could be because:\n\n" +
+                "• The keyboard shortcut is disabled in Windows Settings\n" +
+                "• Another application is blocking the input\n" +
+                "• Windows needs administrator permissions\n\n" +
+                "Would you like to open Windows Settings to configure it manually?",
+                "Toggle Failed",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "ms-settings:easeofaccess-colorfilter",
+                        UseShellExecute = true
+                    });
+                }
+                catch
+                {
+                    System.Windows.MessageBox.Show(
+                        "Please manually navigate to:\nSettings > Accessibility > Color filters",
+                        "Open Settings Manually",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
             }
         }
 
@@ -293,8 +496,7 @@ namespace ZenLayer
         private void UpdateStatus(object? sender, EventArgs? e)
         {
             bool isEnabled = _colorFilterManager.IsGrayscaleEnabled();
-
-            // Update button appearance only (status display removed)
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] Grayscale enabled: {isEnabled}");
             UpdateButtonAppearance(isEnabled, false);
         }
 
@@ -456,7 +658,7 @@ namespace ZenLayer
         {
             try
             {
-                const string appName = "WpfApp1";
+                const string appName = "ZenLayer";
                 using var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
 
                 if (enabled)
@@ -488,9 +690,8 @@ namespace ZenLayer
                 // Small delay to ensure the window is minimized before taking screenshot
                 await Task.Delay(200);
 
-                // Open screenshot selection window
-                var screenshotWindow = new ScreenshotWindow();
-                screenshotWindow.ShowDialog();
+                // Take screenshot using the shared method
+                await TakeScreenshot();
             }
             catch (Exception ex)
             {
@@ -517,7 +718,7 @@ namespace ZenLayer
             {
                 Hide();
                 _notifyIcon.Visible = true;
-                _notifyIcon.ShowBalloonTip(2000, "Grayscale Toggle", "Application minimized to tray", ToolTipIcon.Info);
+                _notifyIcon.ShowBalloonTip(2000, "ZenLayer", "Application minimized to tray", ToolTipIcon.Info);
             }
             base.OnStateChanged(e);
         }
@@ -548,6 +749,38 @@ namespace ZenLayer
 
             _notifyIcon?.Dispose();
             System.Windows.Application.Current.Shutdown();
+        }
+
+        private void SettingsButton_Click(object sender, RoutedEventArgs e)
+        {
+            var settingsWindow = new SettingsWindow(_hotkeyManager);
+            settingsWindow.Owner = this;
+
+            if (settingsWindow.ShowDialog() == true)
+            {
+                // Settings were saved successfully, reload hotkeys
+                LoadAndRegisterHotkeys();
+            }
+        }
+
+        private async Task HandleColorPickerHotkey()
+        {
+            await Task.Run(() =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    try
+                    {
+                        var colorPickerWindow = new ColorPickerWindow();
+                        colorPickerWindow.ShowDialog();
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Windows.MessageBox.Show($"Failed to open color picker: {ex.Message}",
+                            "Color Picker Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                });
+            });
         }
     }
 }

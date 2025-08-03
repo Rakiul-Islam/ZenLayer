@@ -90,13 +90,28 @@ namespace ZenLayer
 
         private void SetupOverlay()
         {
+            // Convert the captured bitmap to BitmapSource
+            var screenshotSource = ConvertBitmapToBitmapSource(_screenCapture);
+
             // Create overlay canvas
-            _overlayCanvas = new Canvas
+            _overlayCanvas = new Canvas();
+
+            // Set the screenshot as the background
+            _overlayCanvas.Background = new ImageBrush(screenshotSource)
             {
-                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(100, 0, 0, 0))
+                Stretch = Stretch.Fill
             };
 
-            // Create selection rectangle - explicitly use WPF Rectangle
+            // Optional: Add a semi-transparent dimming rectangle
+            var dimmingRect = new System.Windows.Shapes.Rectangle
+            {
+                Width = SystemParameters.PrimaryScreenWidth,
+                Height = SystemParameters.PrimaryScreenHeight,
+                Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(100, 0, 0, 0))
+            };
+            _overlayCanvas.Children.Add(dimmingRect);
+
+            // Create selection rectangle
             _selectionRectangle = new System.Windows.Shapes.Rectangle
             {
                 Stroke = System.Windows.Media.Brushes.Red,
@@ -104,8 +119,8 @@ namespace ZenLayer
                 Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 255, 255, 255)),
                 Visibility = Visibility.Collapsed
             };
-
             _overlayCanvas.Children.Add(_selectionRectangle);
+
             Content = _overlayCanvas;
 
             // Set window properties for fullscreen overlay
@@ -241,13 +256,7 @@ namespace ZenLayer
             BitmapSource bitmapSource = null;
             try
             {
-                var hBitmap = croppedBitmap.GetHbitmap();
-                bitmapSource = System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
-                    hBitmap,
-                    IntPtr.Zero,
-                    Int32Rect.Empty,
-                    BitmapSizeOptions.FromEmptyOptions());
-                DeleteObject(hBitmap);
+                bitmapSource = ConvertBitmapToBitmapSource(croppedBitmap);
             }
             catch (Exception ex)
             {
@@ -525,6 +534,20 @@ namespace ZenLayer
         {
             _screenCapture?.Dispose();
             base.OnClosed(e);
+        }
+
+        private BitmapSource ConvertBitmapToBitmapSource(Bitmap bitmap)
+        {
+            var hBitmap = bitmap.GetHbitmap();
+            try
+            {
+                return System.Windows.Interop.Imaging.CreateBitmapSourceFromHBitmap(
+                    hBitmap, IntPtr.Zero, Int32Rect.Empty, BitmapSizeOptions.FromEmptyOptions());
+            }
+            finally
+            {
+                DeleteObject(hBitmap);
+            }
         }
     }
 }

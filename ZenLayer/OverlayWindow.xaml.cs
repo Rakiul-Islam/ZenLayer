@@ -137,6 +137,10 @@ namespace ZenLayer
                 Canvas.SetLeft(ExtractTextButton, centralX + 75);
                 Canvas.SetTop(ExtractTextButton, centralY + 20);
 
+                // Color Picker button - below the text button
+                Canvas.SetLeft(ColorPickerButton, centralX + 48);
+                Canvas.SetTop(ColorPickerButton, centralY + 60);
+
                 // Close button - bottom left
                 Canvas.SetLeft(CloseButton, centralX - 40);
                 Canvas.SetTop(CloseButton, centralY + 40);
@@ -147,13 +151,33 @@ namespace ZenLayer
         {
             try
             {
-                bool isGrayscaleEnabled = _colorFilterManager.IsGrayscaleEnabled();
+                var currentFilter = _colorFilterManager.GetCurrentFilterType();
+                bool isActive = _colorFilterManager.IsColorFilterActive();
 
+                // Update button appearance
                 if (GrayscaleButton.Content is StackPanel stack)
                 {
                     if (stack.Children[0] is TextBlock iconBlock)
                     {
-                        iconBlock.Text = isGrayscaleEnabled ? "●" : "○";
+                        if (isActive && currentFilter.HasValue)
+                        {
+                            switch (currentFilter.Value)
+                            {
+                                case ColorFilterType.Grayscale:
+                                    iconBlock.Text = "⚫";
+                                    break;
+                                case ColorFilterType.Inverted:
+                                    iconBlock.Text = "⚪";
+                                    break;
+                                case ColorFilterType.GrayscaleInverted:
+                                    iconBlock.Text = "◐";
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            iconBlock.Text = "○";
+                        }
                     }
                 }
             }
@@ -174,6 +198,14 @@ namespace ZenLayer
             PositionElementsAtCursor();
             UpdateButtonAppearance();
 
+            await ShowFullAnimation();
+
+            _isAnimating = false;
+            _hideTimer.Start();
+        }
+
+        private async Task ShowFullAnimation()
+        {
             // Get transform objects
             var centralBoxScale = CentralBox.RenderTransform as TransformGroup;
             var centralScale = centralBoxScale?.Children[0] as ScaleTransform;
@@ -189,6 +221,11 @@ namespace ZenLayer
             var extractTextTransform = ExtractTextButton.RenderTransform as TransformGroup;
             var extractTextScale = extractTextTransform?.Children[0] as ScaleTransform;
             var extractTextTranslate = extractTextTransform?.Children[1] as TranslateTransform;
+
+            // Add ColorPicker button transforms
+            var colorPickerTransform = ColorPickerButton.RenderTransform as TransformGroup;
+            var colorPickerScale = colorPickerTransform?.Children[0] as ScaleTransform;
+            var colorPickerTranslate = colorPickerTransform?.Children[1] as TranslateTransform;
 
             var closeTransform = CloseButton.RenderTransform as TransformGroup;
             var closeScale = closeTransform?.Children[0] as ScaleTransform;
@@ -215,12 +252,13 @@ namespace ZenLayer
                 var buttonDistance = 70.0; // Distance from center
                 var screenshotDistance = 60.0;
                 var extractTextDistance = 70.0;
+                var colorPickerDistance = 100.0; // Adjusted distance for color picker (below text button)
                 var closeDistance = 50.0;
 
                 // Animate grayscale button
                 if (buttonScale != null && buttonTranslate != null)
                 {
-                    // Start from center - FIXED: should be negative X to animate from center outward
+                    // Start from center
                     buttonTranslate.X = -buttonDistance;
                     buttonTranslate.Y = -buttonDistance / 2;
 
@@ -312,6 +350,38 @@ namespace ZenLayer
                     ExtractTextButton.BeginAnimation(OpacityProperty, extractTextOpacityAnim);
                 }
 
+                // Add ColorPicker button animation with slight delay
+                await Task.Delay(25);
+
+                if (colorPickerScale != null && colorPickerTranslate != null)
+                {
+                    colorPickerTranslate.X = -colorPickerDistance;
+                    colorPickerTranslate.Y = -colorPickerDistance / 2;
+
+                    var colorPickerScaleAnim = new DoubleAnimation(0.1, 1.0, TimeSpan.FromMilliseconds(250))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var colorPickerMoveXAnim = new DoubleAnimation(-colorPickerDistance, 0, TimeSpan.FromMilliseconds(300))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var colorPickerMoveYAnim = new DoubleAnimation(-colorPickerDistance / 2, 0, TimeSpan.FromMilliseconds(300))
+                    {
+                        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+                    };
+
+                    var colorPickerOpacityAnim = new DoubleAnimation(0, 1.0, TimeSpan.FromMilliseconds(250));
+
+                    colorPickerScale.BeginAnimation(ScaleTransform.ScaleXProperty, colorPickerScaleAnim);
+                    colorPickerScale.BeginAnimation(ScaleTransform.ScaleYProperty, colorPickerScaleAnim);
+                    colorPickerTranslate.BeginAnimation(TranslateTransform.XProperty, colorPickerMoveXAnim);
+                    colorPickerTranslate.BeginAnimation(TranslateTransform.YProperty, colorPickerMoveYAnim);
+                    ColorPickerButton.BeginAnimation(OpacityProperty, colorPickerOpacityAnim);
+                }
+
                 // Animate close button with slight delay
                 await Task.Delay(25);
 
@@ -347,9 +417,6 @@ namespace ZenLayer
                 // Wait for animations to complete
                 await Task.Delay(300);
             }
-
-            _isAnimating = false;
-            _hideTimer.Start();
         }
 
         public async Task HideOverlay()
@@ -359,6 +426,14 @@ namespace ZenLayer
 
             _hideTimer.Stop();
 
+            await HideFullAnimation();
+
+            Hide();
+            _isAnimating = false;
+        }
+
+        private async Task HideFullAnimation()
+        {
             // Reverse animations - buttons go back to center, then central box disappears
             var buttonTransform = GrayscaleButton.RenderTransform as TransformGroup;
             var buttonScale = buttonTransform?.Children[0] as ScaleTransform;
@@ -371,6 +446,11 @@ namespace ZenLayer
             var extractTextTransform = ExtractTextButton.RenderTransform as TransformGroup;
             var extractTextScale = extractTextTransform?.Children[0] as ScaleTransform;
             var extractTextTranslate = extractTextTransform?.Children[1] as TranslateTransform;
+
+            // Add ColorPicker button transforms
+            var colorPickerTransform = ColorPickerButton.RenderTransform as TransformGroup;
+            var colorPickerScale = colorPickerTransform?.Children[0] as ScaleTransform;
+            var colorPickerTranslate = colorPickerTransform?.Children[1] as TranslateTransform;
 
             var closeTransform = CloseButton.RenderTransform as TransformGroup;
             var closeScale = closeTransform?.Children[0] as ScaleTransform;
@@ -436,6 +516,22 @@ namespace ZenLayer
                 ExtractTextButton.BeginAnimation(OpacityProperty, extractTextOpacityAnim);
             }
 
+            if (colorPickerScale != null && colorPickerTranslate != null)
+            {
+                var colorPickerDistance = 100.0; // Match the distance used in ShowOverlay
+                
+                var colorPickerScaleAnim = new DoubleAnimation(1.0, 0.1, TimeSpan.FromMilliseconds(200));
+                var colorPickerMoveXAnim = new DoubleAnimation(0, -colorPickerDistance, TimeSpan.FromMilliseconds(200));
+                var colorPickerMoveYAnim = new DoubleAnimation(0, -colorPickerDistance / 2, TimeSpan.FromMilliseconds(200));
+                var colorPickerOpacityAnim = new DoubleAnimation(1.0, 0, TimeSpan.FromMilliseconds(200));
+
+                colorPickerScale.BeginAnimation(ScaleTransform.ScaleXProperty, colorPickerScaleAnim);
+                colorPickerScale.BeginAnimation(ScaleTransform.ScaleYProperty, colorPickerScaleAnim);
+                colorPickerTranslate.BeginAnimation(TranslateTransform.XProperty, colorPickerMoveXAnim);
+                colorPickerTranslate.BeginAnimation(TranslateTransform.YProperty, colorPickerMoveYAnim);
+                ColorPickerButton.BeginAnimation(OpacityProperty, colorPickerOpacityAnim);
+            }
+
             if (closeScale != null && closeTranslate != null)
             {
                 var closeDistance = 50.0; // Match the distance used in ShowOverlay
@@ -466,9 +562,6 @@ namespace ZenLayer
 
                 await Task.Delay(200);
             }
-
-            Hide();
-            _isAnimating = false;
         }
 
         private async void GrayscaleButton_Click(object sender, RoutedEventArgs e)
@@ -477,6 +570,82 @@ namespace ZenLayer
             {
                 GrayscaleButton.IsEnabled = false;
                 await _colorFilterManager.EnhancedToggleAsync();
+                UpdateButtonAppearance();
+            }
+            catch
+            {
+                // Handle errors silently
+            }
+            finally
+            {
+                GrayscaleButton.IsEnabled = true;
+                await HideOverlay();
+            }
+        }
+
+        private async void GrayscaleMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                GrayscaleButton.IsEnabled = false;
+                await _colorFilterManager.SetColorFilterAsync(ColorFilterType.Grayscale);
+                UpdateButtonAppearance();
+            }
+            catch
+            {
+                // Handle errors silently
+            }
+            finally
+            {
+                GrayscaleButton.IsEnabled = true;
+                await HideOverlay();
+            }
+        }
+
+        private async void GrayscaleInvertedMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                GrayscaleButton.IsEnabled = false;
+                await _colorFilterManager.SetColorFilterAsync(ColorFilterType.GrayscaleInverted);
+                UpdateButtonAppearance();
+            }
+            catch
+            {
+                // Handle errors silently
+            }
+            finally
+            {
+                GrayscaleButton.IsEnabled = true;
+                await HideOverlay();
+            }
+        }
+
+        private async void InvertedMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                GrayscaleButton.IsEnabled = false;
+                await _colorFilterManager.SetColorFilterAsync(ColorFilterType.Inverted);
+                UpdateButtonAppearance();
+            }
+            catch
+            {
+                // Handle errors silently
+            }
+            finally
+            {
+                GrayscaleButton.IsEnabled = true;
+                await HideOverlay();
+            }
+        }
+
+        private async void DisableFilterMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                GrayscaleButton.IsEnabled = false;
+                await _colorFilterManager.DisableColorFilterAsync();
                 UpdateButtonAppearance();
             }
             catch
@@ -587,6 +756,27 @@ namespace ZenLayer
             await HideOverlay();
         }
 
+        private async void ColorPickerButton_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // Hide this overlay first
+                await HideOverlay();
+
+                // Small delay to ensure overlay is hidden
+                await Task.Delay(100);
+
+                // Open color picker window
+                var colorPickerWindow = new ColorPickerWindow();
+                colorPickerWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to open color picker: {ex.Message}",
+                    "Color Picker Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         private async void Window_MouseDown(object sender, MouseButtonEventArgs e)
         {
             // Check if click was outside any button
@@ -596,12 +786,14 @@ namespace ZenLayer
             var buttonBounds = new Rect(Canvas.GetLeft(GrayscaleButton), Canvas.GetTop(GrayscaleButton), GrayscaleButton.Width, GrayscaleButton.Height);
             var screenshotBounds = new Rect(Canvas.GetLeft(ScreenshotButton), Canvas.GetTop(ScreenshotButton), ScreenshotButton.Width, ScreenshotButton.Height);
             var extractTextBounds = new Rect(Canvas.GetLeft(ExtractTextButton), Canvas.GetTop(ExtractTextButton), ExtractTextButton.Width, ExtractTextButton.Height);
+            var colorPickerBounds = new Rect(Canvas.GetLeft(ColorPickerButton), Canvas.GetTop(ColorPickerButton), ColorPickerButton.Width, ColorPickerButton.Height);
             var closeBounds = new Rect(Canvas.GetLeft(CloseButton), Canvas.GetTop(CloseButton), CloseButton.Width, CloseButton.Height);
 
             if (!centralBounds.Contains(clickPoint) &&
                 !buttonBounds.Contains(clickPoint) &&
                 !screenshotBounds.Contains(clickPoint) &&
                 !extractTextBounds.Contains(clickPoint) &&
+                !colorPickerBounds.Contains(clickPoint) &&
                 !closeBounds.Contains(clickPoint))
             {
                 await HideOverlay();
@@ -615,10 +807,16 @@ namespace ZenLayer
         }
 
         // Method to update logo path
-        public void SetLogoPath(string logoPath)
+        public void SetLogoPath(string logoPath)    
         {
             _logoPath = logoPath;
             LoadLogo();
+        }
+
+        // Method to refresh appearance
+        public void RefreshAppearance()
+        {
+            UpdateButtonAppearance();
         }
     }
 }
