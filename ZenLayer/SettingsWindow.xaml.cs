@@ -134,12 +134,23 @@ namespace ZenLayer
             var box = sender as System.Windows.Controls.TextBox;
             string action = box?.Tag as string ?? "";
 
+            // Capture all current modifiers - this is key for multi-modifier support
             ModifierKeys modifiers = Keyboard.Modifiers;
             Key key = (e.Key == Key.System ? e.SystemKey : e.Key);
 
+            // Debug output to help troubleshoot
+            System.Diagnostics.Debug.WriteLine($"Key pressed: {key}, Modifiers: {modifiers}");
+
             // Ignore modifier-only keys
             if (IsModifierKey(key))
+            {
+                // Update the text box to show current modifiers being held
+                if (modifiers != ModifierKeys.None)
+                {
+                    box.Text = FormatModifiersOnly(modifiers) + " + ...";
+                }
                 return;
+            }
 
             // Handle special keys that should be allowed without modifiers for certain actions
             bool isSpecialKey = key == Key.PrintScreen || key == Key.F1 || key == Key.F2 || key == Key.F3 ||
@@ -170,6 +181,9 @@ namespace ZenLayer
             box.Text = hotkeyStr;
             _selectedHotkeys[action] = (key, modifiers);
             ErrorText.Text = "";
+
+            // Debug output to confirm what was captured
+            System.Diagnostics.Debug.WriteLine($"Hotkey captured for {action}: {hotkeyStr}");
         }
 
         private bool IsModifierKey(Key key)
@@ -180,10 +194,23 @@ namespace ZenLayer
                    key == Key.LWin || key == Key.RWin;
         }
 
+        private string FormatModifiersOnly(ModifierKeys modifiers)
+        {
+            var parts = new List<string>();
+
+            if (modifiers.HasFlag(ModifierKeys.Control)) parts.Add("Ctrl");
+            if (modifiers.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
+            if (modifiers.HasFlag(ModifierKeys.Shift)) parts.Add("Shift");
+            if (modifiers.HasFlag(ModifierKeys.Windows)) parts.Add("Win");
+
+            return string.Join(" + ", parts);
+        }
+
         private string FormatHotkey(ModifierKeys modifiers, Key key)
         {
             var parts = new List<string>();
 
+            // Add modifiers in a consistent order
             if (modifiers.HasFlag(ModifierKeys.Control)) parts.Add("Ctrl");
             if (modifiers.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
             if (modifiers.HasFlag(ModifierKeys.Shift)) parts.Add("Shift");
@@ -222,16 +249,6 @@ namespace ZenLayer
         {
             // Unregister current hotkeys to avoid self-conflict
             _hotkeyManager?.UnregisterAllHotkeys();
-
-            // Allow saving even with no hotkeys configured (user might want to clear all)
-            // if (_selectedHotkeys.Count == 0)
-            // {
-            //     System.Windows.MessageBox.Show("Please configure at least one hotkey before saving.",
-            //                    "No Hotkeys Configured",
-            //                    MessageBoxButton.OK,
-            //                    MessageBoxImage.Information);
-            //     return;
-            // }
 
             // Check if all hotkeys are available
             var conflictingHotkeys = new List<string>();
@@ -292,7 +309,7 @@ namespace ZenLayer
                 Properties.Settings.Default.OverlayHotkey = "";
                 Properties.Settings.Default.ScreenshotHotkey = "";
                 Properties.Settings.Default.ExtractTextHotkey = "";
-                Properties.Settings.Default.ColorPickerHotkey = ""; // Add this line
+                Properties.Settings.Default.ColorPickerHotkey = "";
 
                 // Save configured hotkeys to application settings
                 foreach (var kvp in _selectedHotkeys)
@@ -310,7 +327,7 @@ namespace ZenLayer
                         case "ExtractText":
                             Properties.Settings.Default.ExtractTextHotkey = hotkeyStr;
                             break;
-                        case "ColorPicker": // Add this case
+                        case "ColorPicker":
                             Properties.Settings.Default.ColorPickerHotkey = hotkeyStr;
                             break;
                     }
@@ -323,7 +340,7 @@ namespace ZenLayer
                 System.Diagnostics.Debug.WriteLine($"Saved OverlayHotkey: '{Properties.Settings.Default.OverlayHotkey}'");
                 System.Diagnostics.Debug.WriteLine($"Saved ScreenshotHotkey: '{Properties.Settings.Default.ScreenshotHotkey}'");
                 System.Diagnostics.Debug.WriteLine($"Saved ExtractTextHotkey: '{Properties.Settings.Default.ExtractTextHotkey}'");
-                System.Diagnostics.Debug.WriteLine($"Saved ColorPickerHotkey: '{Properties.Settings.Default.ColorPickerHotkey}'"); // Add this line
+                System.Diagnostics.Debug.WriteLine($"Saved ColorPickerHotkey: '{Properties.Settings.Default.ColorPickerHotkey}'");
             }
             catch (Exception ex)
             {
@@ -344,7 +361,7 @@ namespace ZenLayer
                 OverlayHotkeyBox.Text = "";
                 ScreenshotHotkeyBox.Text = "";
                 ExtractTextHotkeyBox.Text = "";
-                ColorPickerHotkeyBox.Text = ""; // Add this line
+                ColorPickerHotkeyBox.Text = "";
 
                 // Clear selected hotkeys
                 _selectedHotkeys.Clear();
@@ -371,7 +388,7 @@ namespace ZenLayer
                 // Set default hotkeys
                 _selectedHotkeys.Clear();
 
-                // Default overlay hotkey: Win + Ctrl + O
+                // Default overlay hotkey: Win + Ctrl + O (multi-modifier example)
                 _selectedHotkeys["Overlay"] = (Key.O, ModifierKeys.Windows | ModifierKeys.Control);
                 OverlayHotkeyBox.Text = "Win + Ctrl + O";
 
@@ -379,11 +396,11 @@ namespace ZenLayer
                 _selectedHotkeys["Screenshot"] = (Key.PrintScreen, ModifierKeys.None);
                 ScreenshotHotkeyBox.Text = "PrintScreen";
 
-                // Default extract text hotkey: Win + Ctrl + T
+                // Default extract text hotkey: Win + Ctrl + T (multi-modifier example)
                 _selectedHotkeys["ExtractText"] = (Key.T, ModifierKeys.Windows | ModifierKeys.Control);
                 ExtractTextHotkeyBox.Text = "Win + Ctrl + T";
 
-                // Default color picker hotkey: Win + Ctrl + C
+                // Default color picker hotkey: Win + Ctrl + C (multi-modifier example)
                 _selectedHotkeys["ColorPicker"] = (Key.C, ModifierKeys.Windows | ModifierKeys.Control);
                 ColorPickerHotkeyBox.Text = "Win + Ctrl + C";
 
@@ -411,7 +428,7 @@ namespace ZenLayer
             if (box != null)
             {
                 box.Background = System.Windows.Media.Brushes.LightYellow;
-                ErrorText.Text = "Press a key combination to set the hotkey (e.g., Ctrl+Alt+X or F12)";
+                ErrorText.Text = "Press a key combination to set the hotkey (e.g., Ctrl+Shift+X or Win+Alt+F2)";
             }
         }
 
@@ -438,12 +455,12 @@ namespace ZenLayer
                 ["Overlay"] = Properties.Settings.Default.OverlayHotkey ?? "",
                 ["Screenshot"] = Properties.Settings.Default.ScreenshotHotkey ?? "",
                 ["ExtractText"] = Properties.Settings.Default.ExtractTextHotkey ?? "",
-                ["ColorPicker"] = Properties.Settings.Default.ColorPickerHotkey ?? "" // Add this line
+                ["ColorPicker"] = Properties.Settings.Default.ColorPickerHotkey ?? ""
             };
 
             foreach (var kvp in _selectedHotkeys)
             {
-                string currentHotkey = FormatHotkey(kvp.Value.modifiers, kvp.Value.key); // Fixed the syntax error here
+                string currentHotkey = FormatHotkey(kvp.Value.modifiers, kvp.Value.key);
                 if (currentSettings.ContainsKey(kvp.Key) && currentSettings[kvp.Key] != currentHotkey)
                 {
                     hasUnsavedChanges = true;

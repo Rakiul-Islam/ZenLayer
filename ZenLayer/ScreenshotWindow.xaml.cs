@@ -137,8 +137,6 @@ namespace ZenLayer
                 Stretch = Stretch.None,
                 HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
                 VerticalAlignment = System.Windows.VerticalAlignment.Top,
-                //RenderTransform = new ScaleTransform(1 / dpi.DpiScaleX, 1 / dpi.DpiScaleY),
-                //RenderTransformOrigin = new System.Windows.Point(0, 0)
             };
 
             // Position the image exactly at 0,0 without any additional transforms

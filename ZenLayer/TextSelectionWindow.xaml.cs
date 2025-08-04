@@ -19,11 +19,9 @@ namespace ZenLayer
         private readonly Action<Bitmap> _onSelectionComplete;
         public bool WasSelectionMade { get; private set; } = false;
 
-        private double _dpiScaleX = 1.0;
-        private double _dpiScaleY = 1.0;
-
         private Bitmap _screenCapture; // Store the captured screen
         private System.Windows.Shapes.Rectangle _selectionRectangle;
+        private Canvas _overlayCanvas;
 
         [DllImport("user32.dll")]
         private static extern IntPtr GetDesktopWindow();
@@ -62,6 +60,13 @@ namespace ZenLayer
         [DllImport("gdi32.dll")]
         private static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
 
+        // Add these new imports for virtual screen support
+        [DllImport("user32.dll")]
+        private static extern int GetSystemMetrics(int nIndex);
+
+        [DllImport("user32.dll")]
+        private static extern bool SetProcessDPIAware();
+
         private const int LOGPIXELSX = 88;
         private const int LOGPIXELSY = 90;
         private const uint SRCCOPY = 0x00CC0020;
@@ -75,48 +80,34 @@ namespace ZenLayer
 
         public TextSelectionWindow(Action<Bitmap> onSelectionComplete)
         {
+            SetProcessDPIAware(); // Add DPI awareness
             InitializeComponent();
             _onSelectionComplete = onSelectionComplete;
 
-            InitializeDpiScaling();
             CaptureScreen(); // Capture the screen at startup
             SetupOverlay();
 
             KeyDown += Window_KeyDown;
         }
 
-        private void InitializeDpiScaling()
-        {
-            try
-            {
-                IntPtr hdc = GetDC(IntPtr.Zero);
-                int dpiX = GetDeviceCaps(hdc, LOGPIXELSX);
-                int dpiY = GetDeviceCaps(hdc, LOGPIXELSY);
-                ReleaseDC(IntPtr.Zero, hdc);
-
-                _dpiScaleX = dpiX / 96.0;
-                _dpiScaleY = dpiY / 96.0;
-            }
-            catch
-            {
-                _dpiScaleX = 1.0;
-                _dpiScaleY = 1.0;
-            }
-        }
-
         private void CaptureScreen()
         {
+            // Get virtual screen dimensions (all monitors combined)
+            int virtualScreenLeft = GetSystemMetrics(76);   // SM_XVIRTUALSCREEN
+            int virtualScreenTop = GetSystemMetrics(77);    // SM_YVIRTUALSCREEN
+            int virtualScreenWidth = GetSystemMetrics(78);  // SM_CXVIRTUALSCREEN
+            int virtualScreenHeight = GetSystemMetrics(79); // SM_CYVIRTUALSCREEN
+
             IntPtr hDesk = GetDesktopWindow();
             IntPtr hSrce = GetWindowDC(hDesk);
 
-            int screenWidth = GetDeviceCaps(hSrce, 8);  // HORZRES
-            int screenHeight = GetDeviceCaps(hSrce, 10); // VERTRES
-
             IntPtr hDest = CreateCompatibleDC(hSrce);
-            IntPtr hBmp = CreateCompatibleBitmap(hSrce, screenWidth, screenHeight);
+            IntPtr hBmp = CreateCompatibleBitmap(hSrce, virtualScreenWidth, virtualScreenHeight);
             IntPtr hOldBmp = SelectObject(hDest, hBmp);
 
-            bool success = BitBlt(hDest, 0, 0, screenWidth, screenHeight, hSrce, 0, 0, SRCCOPY);
+            // Capture from virtual screen coordinates
+            bool success = BitBlt(hDest, 0, 0, virtualScreenWidth, virtualScreenHeight,
+                                 hSrce, virtualScreenLeft, virtualScreenTop, SRCCOPY);
 
             SelectObject(hDest, hOldBmp);
             DeleteDC(hDest);
@@ -146,77 +137,129 @@ namespace ZenLayer
 
         private void SetupOverlay()
         {
+            // Get virtual screen dimensions
+            int virtualScreenLeft = GetSystemMetrics(76);   // SM_XVIRTUALSCREEN
+            int virtualScreenTop = GetSystemMetrics(77);    // SM_YVIRTUALSCREEN
+            int virtualScreenWidth = GetSystemMetrics(78);  // SM_CXVIRTUALSCREEN
+            int virtualScreenHeight = GetSystemMetrics(79); // SM_CYVIRTUALSCREEN
+
             // Convert the captured bitmap to BitmapSource
             var screenshotSource = ConvertBitmapToBitmapSource(_screenCapture);
 
-            // Set the screenshot as the background of the selection canvas
-            SelectionCanvas.Background = new ImageBrush(screenshotSource)
+            // Create overlay canvas with exact virtual screen dimensions
+            _overlayCanvas = new Canvas()
             {
-                Stretch = Stretch.Fill
+                Width = virtualScreenWidth,
+                Height = virtualScreenHeight,
+                ClipToBounds = true
             };
 
-            // Optional: Add a semi-transparent dimming rectangle
+            // Apply inverse DPI scaling to the entire canvas for proper alignment
+            var dpi = VisualTreeHelper.GetDpi(this);
+
+            // Create an Image control to display the screenshot
+            var screenshotImage = new System.Windows.Controls.Image
+            {
+                Source = screenshotSource,
+                Stretch = Stretch.None,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                VerticalAlignment = System.Windows.VerticalAlignment.Top
+            };
+
+            // Position the image exactly at 0,0 without any additional transforms
+            Canvas.SetLeft(screenshotImage, 0);
+            Canvas.SetTop(screenshotImage, 0);
+            _overlayCanvas.Children.Add(screenshotImage);
+
+            _overlayCanvas.RenderTransform = new ScaleTransform(1 / dpi.DpiScaleX, 1 / dpi.DpiScaleY);
+            _overlayCanvas.RenderTransformOrigin = new System.Windows.Point(0, 0);
+
+            // Add a semi-transparent dimming rectangle
             var dimmingRect = new System.Windows.Shapes.Rectangle
             {
-                Width = SystemParameters.PrimaryScreenWidth,
-                Height = SystemParameters.PrimaryScreenHeight,
+                Width = virtualScreenWidth,
+                Height = virtualScreenHeight,
                 Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(100, 0, 0, 0))
             };
-            SelectionCanvas.Children.Add(dimmingRect);
+            Canvas.SetLeft(dimmingRect, 0);
+            Canvas.SetTop(dimmingRect, 0);
+            _overlayCanvas.Children.Add(dimmingRect);
 
-            // Create and add the selection rectangle
+            // Create selection rectangle
             _selectionRectangle = new System.Windows.Shapes.Rectangle
             {
-                Stroke = System.Windows.Media.Brushes.Red,
-                StrokeThickness = 2,
-                Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 255, 255, 255)),
+                Stroke = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0, 191, 255)), // #FF00BFFF
+                StrokeThickness = 3,
+                StrokeDashArray = new DoubleCollection { 5, 3 },
+                Fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(32, 0, 191, 255)), // #2000BFFF
                 Visibility = Visibility.Collapsed
             };
-            SelectionCanvas.Children.Add(_selectionRectangle);
+            
+            // Add drop shadow effect
+            _selectionRectangle.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            {
+                Color = Colors.White,
+                BlurRadius = 3,
+                ShadowDepth = 0,
+                Opacity = 0.8
+            };
+            
+            _overlayCanvas.Children.Add(_selectionRectangle);
 
-            // Attach mouse event handlers to the canvas
-            SelectionCanvas.MouseLeftButtonDown += Overlay_MouseLeftButtonDown;
-            SelectionCanvas.MouseMove += Overlay_MouseMove;
-            SelectionCanvas.MouseLeftButtonUp += Overlay_MouseLeftButtonUp;
+            Content = _overlayCanvas;
 
             // Set window properties for fullscreen overlay
             WindowStyle = WindowStyle.None;
-            WindowState = WindowState.Maximized;
+
+            // Position window to cover entire virtual screen
+            Left = virtualScreenLeft;
+            Top = virtualScreenTop;
+            Width = virtualScreenWidth;
+            Height = virtualScreenHeight;
+            WindowState = WindowState.Normal;
+
             AllowsTransparency = true;
             Background = System.Windows.Media.Brushes.Transparent;
             Topmost = true;
             ShowInTaskbar = false;
 
+            // Add event handlers
+            MouseLeftButtonDown += OnMouseLeftButtonDown;
+            MouseMove += OnMouseMove;
+            MouseLeftButtonUp += OnMouseLeftButtonUp;
+            KeyDown += OnKeyDown;
+
+            // Set cursor
             Cursor = System.Windows.Input.Cursors.Cross;
         }
 
-        private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        private void OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (!_isSelecting)
             {
-                _startPoint = e.GetPosition(SelectionCanvas);
+                _startPoint = e.GetPosition(_overlayCanvas);
                 _isSelecting = true;
                 _selectionRectangle.Visibility = Visibility.Visible;
-                SelectionCanvas.CaptureMouse();
+                _overlayCanvas.CaptureMouse();
             }
         }
 
-        private void Overlay_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        private void OnMouseMove(object sender, System.Windows.Input.MouseEventArgs e)
         {
             if (_isSelecting)
             {
-                _endPoint = e.GetPosition(SelectionCanvas);
+                _endPoint = e.GetPosition(_overlayCanvas);
                 UpdateSelectionRectangle();
             }
         }
 
-        private void Overlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (_isSelecting)
             {
                 _isSelecting = false;
-                SelectionCanvas.ReleaseMouseCapture();
-                _endPoint = e.GetPosition(SelectionCanvas);
+                _overlayCanvas.ReleaseMouseCapture();
+                _endPoint = e.GetPosition(_overlayCanvas);
 
                 double width = Math.Abs(_endPoint.X - _startPoint.X);
                 double height = Math.Abs(_endPoint.Y - _startPoint.Y);
@@ -230,6 +273,14 @@ namespace ZenLayer
                 {
                     Close();
                 }
+            }
+        }
+
+        private void OnKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                Close();
             }
         }
 
@@ -255,11 +306,13 @@ namespace ZenLayer
                 double width = Math.Abs(_endPoint.X - _startPoint.X);
                 double height = Math.Abs(_endPoint.Y - _startPoint.Y);
 
-                int x = (int)(left * _dpiScaleX);
-                int y = (int)(top * _dpiScaleY);
-                int w = (int)(width * _dpiScaleX);
-                int h = (int)(height * _dpiScaleY);
+                // Use coordinates as-is since the DPI transform on the canvas handles alignment
+                int x = (int)left;
+                int y = (int)top;
+                int w = (int)width;
+                int h = (int)height;
 
+                // Ensure bounds are within captured bitmap
                 x = Math.Max(0, Math.Min(x, _screenCapture.Width - 1));
                 y = Math.Max(0, Math.Min(y, _screenCapture.Height - 1));
                 w = Math.Max(1, Math.Min(w, _screenCapture.Width - x));
@@ -286,21 +339,25 @@ namespace ZenLayer
             }
         }
 
+        // Keep these methods for backward compatibility but remove the old event handlers from XAML
+        private void Overlay_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            OnMouseLeftButtonDown(sender, e);
+        }
+
+        private void Overlay_MouseMove(object sender, System.Windows.Input.MouseEventArgs e)
+        {
+            OnMouseMove(sender, e);
+        }
+
+        private void Overlay_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            OnMouseLeftButtonUp(sender, e);
+        }
+
         private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
         {
-            if (e.Key == Key.Escape)
-            {
-                // Release mouse capture if active
-                if (_isSelecting)
-                {
-                    _isSelecting = false;
-                    SelectionCanvas.ReleaseMouseCapture();
-                }
-                
-                // Mark the event as handled and close
-                e.Handled = true;
-                Close();
-            }
+            OnKeyDown(sender, e);
         }
 
         protected override void OnClosed(EventArgs e)

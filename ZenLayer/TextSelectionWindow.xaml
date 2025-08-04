@@ -10,82 +10,8 @@
         Background="Transparent"
         WindowState="Maximized"
         ResizeMode="NoResize"
-        KeyDown="Window_KeyDown"
         Cursor="Cross">
 
-    <Grid Name="MainGrid">
-        <!-- Canvas for proper positioning -->
-        <Canvas Name="SelectionCanvas">
-            <!-- Semi-transparent overlay -->
-            <Rectangle Name="OverlayRect" 
-                       Fill="#60000000"
-                       Width="{Binding ActualWidth, ElementName=MainGrid}"
-                       Height="{Binding ActualHeight, ElementName=MainGrid}"
-                       MouseLeftButtonDown="Overlay_MouseLeftButtonDown"
-                       MouseMove="Overlay_MouseMove"
-                       MouseLeftButtonUp="Overlay_MouseLeftButtonUp"/>
-
-            <!-- Selection rectangle -->
-            <Rectangle Name="SelectionRectangle"
-                       Stroke="#FF00BFFF"
-                       StrokeThickness="3"
-                       StrokeDashArray="5,3"
-                       Fill="#2000BFFF"
-                       Visibility="Collapsed"
-                       IsHitTestVisible="False">
-                <Rectangle.Effect>
-                    <DropShadowEffect Color="White" BlurRadius="3" ShadowDepth="0" Opacity="0.8"/>
-                </Rectangle.Effect>
-            </Rectangle>
-        </Canvas>
-
-        <!-- Instructions text (outside canvas to maintain positioning) -->
-        <Border Name="InstructionsPanel"
-                Background="#E6000000"
-                CornerRadius="10"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Top"
-                Margin="0,40,0,0"
-                Padding="25,15">
-
-            <Border.Effect>
-                <DropShadowEffect Color="Black" BlurRadius="10" ShadowDepth="3" Opacity="0.5"/>
-            </Border.Effect>
-
-            <StackPanel Orientation="Vertical" HorizontalAlignment="Center">
-                <TextBlock Name="InstructionsTitle"
-                           Text="📄 Text Extraction"
-                           FontSize="18"
-                           FontWeight="Bold"
-                           Foreground="White"
-                           HorizontalAlignment="Center"
-                           Margin="0,0,0,8"/>
-
-                <TextBlock Name="InstructionsText"
-                           Text="Click and drag to select the text area"
-                           FontSize="14"
-                           Foreground="#CCFFFFFF"
-                           HorizontalAlignment="Center"
-                           Margin="0,0,0,5"/>
-
-                <TextBlock Name="CancelInstructions"
-                           Text="Press ESC to cancel"
-                           FontSize="12"
-                           Foreground="#99FFFFFF"
-                           HorizontalAlignment="Center"
-                           FontStyle="Italic"/>
-            </StackPanel>
-        </Border>
-
-        <!-- Coordinates display (for debugging - can be removed in production) -->
-        <TextBlock Name="CoordinatesDisplay"
-                   FontSize="12"
-                   Foreground="Yellow"
-                   Background="#80000000"
-                   Padding="10,5"
-                   HorizontalAlignment="Left"
-                   VerticalAlignment="Bottom"
-                   Margin="10,0,0,10"
-                   Visibility="Collapsed"/>
-    </Grid>
+    <!-- Content will be set programmatically in code-behind -->
+    
 </Window>
