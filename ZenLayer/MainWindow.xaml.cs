@@ -1,23 +1,9 @@
-﻿using Microsoft.Win32;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
+﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
-using System.Windows.Forms;
 using System.Windows.Input;
-using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
-using System.Drawing;
-using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
-using System.Windows.Media.Imaging;
 
 namespace ZenLayer
 {
@@ -85,9 +71,6 @@ namespace ZenLayer
             // Setup system tray
             InitializeSystemTray();
 
-            // Load settings
-            LoadSettings();
-
             // Initialize hotkey manager
             _hotkeyManager = new GlobalHotkeyManager();
             _hotkeyManager.HotkeyPressed += OnGlobalHotkeyPressed;
@@ -129,6 +112,13 @@ namespace ZenLayer
                     var parsed = ParseHotkeyString(Properties.Settings.Default.OverlayHotkey);
                     if (parsed.HasValue)
                         savedHotkeys["Overlay"] = parsed.Value;
+                }
+
+                if (!string.IsNullOrEmpty(Properties.Settings.Default.GrayscaleHotkey))
+                {
+                    var parsed = ParseHotkeyString(Properties.Settings.Default.GrayscaleHotkey);
+                    if (parsed.HasValue)
+                        savedHotkeys["Grayscale"] = parsed.Value;
                 }
 
                 if (!string.IsNullOrEmpty(Properties.Settings.Default.ScreenshotHotkey))
@@ -236,25 +226,31 @@ namespace ZenLayer
 
         private async void OnGlobalHotkeyPressed(object? sender, GlobalHotkeyManager.HotkeyPressedEventArgs e)
         {
-            if (_isToggleInProgress)
-                return; // Prevent re-entrancy
-
             try
             {
-                _isToggleInProgress = true;
-
                 switch (e.Action)
                 {
                     case "Overlay":
                         await HandleOverlayHotkey();
                         break;
+                    case "Grayscale":
+                        // Match the button click pattern exactly - no Task.Run wrapper
+                        if (Dispatcher.CheckAccess())
+                        {
+                            await ToggleGrayscale(); // Direct call like button click
+                        }
+                        else
+                        {
+                            Dispatcher.Invoke(async () => await ToggleGrayscale());
+                        }
+                        break;
                     case "Screenshot":
-                        await HandleScreenshotHotkey();
+                        await HandleScreenshotHotkey(); // Keep existing pattern for UI operations
                         break;
                     case "ExtractText":
                         await HandleExtractTextHotkey();
                         break;
-                    case "ColorPicker": // Add this case
+                    case "ColorPicker":
                         await HandleColorPickerHotkey();
                         break;
                 }
@@ -262,10 +258,6 @@ namespace ZenLayer
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Hotkey handling error: {ex.Message}");
-            }
-            finally
-            {
-                _isToggleInProgress = false;
             }
         }
 
@@ -394,45 +386,67 @@ namespace ZenLayer
 
         private async void ToggleButton_Click(object sender, RoutedEventArgs e)
         {
+            System.Diagnostics.Debug.WriteLine($"ANNNNAHHHHHHH");
             await ToggleGrayscale();
         }
 
         private async Task ToggleGrayscale()
         {
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] Keyboard.Modifiers: {Keyboard.Modifiers}");
             if (_isToggleInProgress)
+            {
+                System.Diagnostics.Debug.WriteLine("[DEBUG] Toggle already in progress, returning early");
                 return;
+            }
 
             try
             {
                 _isToggleInProgress = true;
-                SetButtonLoadingState(true);
+                ToggleButton.IsEnabled = false;
 
                 bool initialState = _colorFilterManager.IsGrayscaleEnabled();
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] Initial grayscale state: {initialState}");
 
-                bool success;
+                bool success = false;
                 if (!initialState)
                 {
-                    // Always set to Grayscale when enabling
+                    System.Diagnostics.Debug.WriteLine("[DEBUG] Attempting to enable grayscale...");
                     success = await _colorFilterManager.SetColorFilterAsync(ColorFilterType.Grayscale);
+                    System.Diagnostics.Debug.WriteLine($"[DEBUG] SetColorFilterAsync returned: {success}");
                 }
                 else
                 {
-                    // Disable the filter
+                    System.Diagnostics.Debug.WriteLine("[DEBUG] Attempting to disable grayscale...");
                     success = await _colorFilterManager.DisableColorFilterAsync();
+                    System.Diagnostics.Debug.WriteLine($"[DEBUG] DisableColorFilterAsync returned: {success}");
                 }
 
+                // Wait a bit for the system to process the change
                 await Task.Delay(1000);
 
                 bool finalState = _colorFilterManager.IsGrayscaleEnabled();
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] Final grayscale state: {finalState}");
+
                 bool stateChanged = initialState != finalState;
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] State changed: {stateChanged}");
 
                 if (!success && !stateChanged)
                 {
+                    System.Diagnostics.Debug.WriteLine("[DEBUG] Toggle failed - showing error dialog");
                     ShowToggleError();
+                }
+                else if (stateChanged)
+                {
+                    System.Diagnostics.Debug.WriteLine("[DEBUG] Toggle succeeded!");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[DEBUG] Method reported success but state didn't change");
                 }
             }
             catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] Exception in ToggleGrayscale: {ex.Message}");
                 System.Windows.MessageBox.Show(
                     $"An error occurred: {ex.Message}",
                     "Error",
@@ -442,8 +456,9 @@ namespace ZenLayer
             finally
             {
                 _isToggleInProgress = false;
-                SetButtonLoadingState(false);
+                ToggleButton.IsEnabled = true;
                 UpdateStatus(null, null);
+                System.Diagnostics.Debug.WriteLine("[DEBUG] ToggleGrayscale method completed");
             }
         }
 
@@ -480,203 +495,21 @@ namespace ZenLayer
             }
         }
 
-        private void SetButtonLoadingState(bool isLoading)
-        {
-            if (isLoading)
-            {
-                ToggleButton.IsEnabled = false;
-                UpdateButtonAppearance(null, true); // null means loading state
-            }
-            else
-            {
-                ToggleButton.IsEnabled = true;
-            }
-        }
-
         private void UpdateStatus(object? sender, EventArgs? e)
         {
             bool isEnabled = _colorFilterManager.IsGrayscaleEnabled();
-            System.Diagnostics.Debug.WriteLine($"[DEBUG] Grayscale enabled: {isEnabled}");
-            UpdateButtonAppearance(isEnabled, false);
-        }
 
-        private void UpdateButtonAppearance(bool? isEnabled, bool isLoading)
-        {
-            if (isLoading)
+            // Update the status text
+            FilterStatusText.Text = isEnabled ? "Filter is currently ON" : "Filter is currently OFF";
+
+            // Update the status indicator color
+            if (isEnabled)
             {
-                // Loading state
-                ToggleButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x95, 0xA5, 0xA6)); // Gray
-
-                // Create new content for loading
-                var loadingContent = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, HorizontalAlignment = System.Windows.HorizontalAlignment.Center };
-
-                // Loading icon
-                var iconBorder = new Border
-                {
-                    Width = 24,
-                    Height = 24,
-                    CornerRadius = new CornerRadius(12),
-                    Background = System.Windows.Media.Brushes.White,
-                    Margin = new Thickness(0, 0, 10, 0),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-
-                var iconText = new TextBlock
-                {
-                    Text = "⟳",
-                    FontSize = 14,
-                    FontWeight = FontWeights.Bold,
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2C, 0x3E, 0x50))
-                };
-
-                iconBorder.Child = iconText;
-                loadingContent.Children.Add(iconBorder);
-
-                // Loading text
-                var textStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-
-                var actionText = new TextBlock
-                {
-                    Text = "Please wait...",
-                    FontSize = 16,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = System.Windows.Media.Brushes.White
-                };
-
-                var statusSubtext = new TextBlock
-                {
-                    Text = "Toggling filter",
-                    FontSize = 11,
-                    Foreground = System.Windows.Media.Brushes.White,
-                    Opacity = 0.8,
-                    Margin = new Thickness(0, 2, 0, 0)
-                };
-
-                textStack.Children.Add(actionText);
-                textStack.Children.Add(statusSubtext);
-                loadingContent.Children.Add(textStack);
-
-                ToggleButton.Content = loadingContent;
+                StatusIndicator.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x27, 0xAE, 0x60)); // Green
             }
-            else if (isEnabled.HasValue)
+            else
             {
-                // Normal state
-                bool grayscaleEnabled = isEnabled.Value;
-
-                // Set button color based on state
-                if (grayscaleEnabled)
-                {
-                    // Grayscale is ON - Green button to disable it
-                    ToggleButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x27, 0xAE, 0x60)); // Green
-                }
-                else
-                {
-                    // Grayscale is OFF - Blue button to enable it  
-                    ToggleButton.Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x34, 0x98, 0xDB)); // Blue
-                }
-
-                // Create content
-                var content = new StackPanel { Orientation = System.Windows.Controls.Orientation.Horizontal, HorizontalAlignment = System.Windows.HorizontalAlignment.Center };
-
-                // Status icon
-                var iconBorder = new Border
-                {
-                    Width = 24,
-                    Height = 24,
-                    CornerRadius = new CornerRadius(12),
-                    Background = System.Windows.Media.Brushes.White,
-                    Margin = new Thickness(0, 0, 10, 0),
-                    VerticalAlignment = VerticalAlignment.Center
-                };
-
-                var iconText = new TextBlock
-                {
-                    Text = grayscaleEnabled ? "●" : "○",
-                    FontSize = 14,
-                    FontWeight = FontWeights.Bold,
-                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Foreground = new SolidColorBrush(grayscaleEnabled ? System.Windows.Media.Color.FromRgb(0x27, 0xAE, 0x60) : System.Windows.Media.Color.FromRgb(0x34, 0x98, 0xDB))
-                };
-
-                iconBorder.Child = iconText;
-                content.Children.Add(iconBorder);
-
-                // Button text
-                var textStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-
-                var actionText = new TextBlock
-                {
-                    Text = grayscaleEnabled ? "Disable Grayscale" : "Enable Grayscale",
-                    FontSize = 16,
-                    FontWeight = FontWeights.Bold,
-                    Foreground = System.Windows.Media.Brushes.White
-                };
-
-                var statusSubtext = new TextBlock
-                {
-                    Text = grayscaleEnabled ? "Filter is currently ON" : "Filter is currently OFF",
-                    FontSize = 11,
-                    Foreground = System.Windows.Media.Brushes.White,
-                    Opacity = 0.8,
-                    Margin = new Thickness(0, 2, 0, 0)
-                };
-
-                textStack.Children.Add(actionText);
-                textStack.Children.Add(statusSubtext);
-                content.Children.Add(textStack);
-
-                ToggleButton.Content = content;
-            }
-        }
-
-        private void StartupCheckBox_Checked(object sender, RoutedEventArgs e)
-        {
-            SetStartup(true);
-        }
-
-        private void StartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
-        {
-            SetStartup(false);
-        }
-
-        private void MinimizeCheckBox_Checked(object sender, RoutedEventArgs e)
-        {
-            Properties.Settings.Default.MinimizeToTray = true;
-            Properties.Settings.Default.Save();
-        }
-
-        private void MinimizeCheckBox_Unchecked(object sender, RoutedEventArgs e)
-        {
-            Properties.Settings.Default.MinimizeToTray = false;
-            Properties.Settings.Default.Save();
-        }
-
-        private void SetStartup(bool enabled)
-        {
-            try
-            {
-                const string appName = "ZenLayer";
-                using var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
-
-                if (enabled)
-                {
-                    string exePath = Assembly.GetExecutingAssembly().Location.Replace(".dll", ".exe");
-                    key?.SetValue(appName, $"\"{exePath}\"");
-                }
-                else
-                {
-                    key?.DeleteValue(appName, false);
-                }
-
-                Properties.Settings.Default.StartWithWindows = enabled;
-                Properties.Settings.Default.Save();
-            }
-            catch (Exception ex)
-            {
-                System.Windows.MessageBox.Show($"Failed to update startup settings: {ex.Message}", "Error");
+                StatusIndicator.Fill = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE7, 0x4C, 0x3C)); // Red
             }
         }
 
@@ -706,10 +539,37 @@ namespace ZenLayer
             }
         }
 
-        private void LoadSettings()
+        private void UpdateShortcutInfoBar()
         {
-            StartupCheckBox.IsChecked = Properties.Settings.Default.StartWithWindows;
-            MinimizeCheckBox.IsChecked = Properties.Settings.Default.MinimizeToTray;
+            var shortcuts = new List<string>();
+
+            // Collect all configured shortcuts
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.OverlayHotkey))
+                shortcuts.Add($"Overlay: {Properties.Settings.Default.OverlayHotkey}");
+
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.GrayscaleHotkey))
+                shortcuts.Add($"Grayscale: {Properties.Settings.Default.GrayscaleHotkey}");
+
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.ScreenshotHotkey))
+                shortcuts.Add($"Screenshot: {Properties.Settings.Default.ScreenshotHotkey}");
+
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.ExtractTextHotkey))
+                shortcuts.Add($"Extract Text: {Properties.Settings.Default.ExtractTextHotkey}");
+
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.ColorPickerHotkey))
+                shortcuts.Add($"Color Picker: {Properties.Settings.Default.ColorPickerHotkey}");
+
+            // Update InfoBar message
+            if (shortcuts.Any())
+            {
+                ShortcutInfoBar.Title = "Configured Shortcuts";
+                ShortcutInfoBar.Message = string.Join(" • ", shortcuts);
+            }
+            else
+            {
+                ShortcutInfoBar.Title = "No Shortcuts Configured";
+                ShortcutInfoBar.Message = "Go to Settings to configure keyboard shortcuts for quick access to features";
+            }
         }
 
         protected override void OnStateChanged(EventArgs e)
@@ -760,6 +620,9 @@ namespace ZenLayer
             {
                 // Settings were saved successfully, reload hotkeys
                 LoadAndRegisterHotkeys();
+
+                // Update the InfoBar with the new shortcuts
+                UpdateShortcutInfoBar();
             }
         }
 
@@ -781,6 +644,15 @@ namespace ZenLayer
                     }
                 });
             });
+        }
+
+        private async Task HandleGrayscaleHotkey()
+        {
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] HandleGrayscaleHotkey called on thread: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+            System.Diagnostics.Debug.WriteLine($"[DEBUG] Dispatcher.CheckAccess(): {Dispatcher.CheckAccess()}");
+
+            // Direct call - should now be on UI thread
+            await ToggleGrayscale();
         }
     }
 }

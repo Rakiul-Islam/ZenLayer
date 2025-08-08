@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Configuration;
 using System.Data;
 using System.Linq;
 using System.Windows;
-using Microsoft.Win32;
+using Wpf.Ui;
+using Wpf.Ui.Appearance;
 
 namespace ZenLayer
 {
@@ -11,7 +13,10 @@ namespace ZenLayer
     {
         protected override void OnStartup(StartupEventArgs e)
         {
-            ForceModernIE(); // 🔧 Call it first
+            ForceModernIE(); 
+
+            // Initialize WPF-UI theme
+            ApplicationThemeManager.Apply(ApplicationTheme.Dark);
 
             // Ensure only one instance is running
             var currentProcess = System.Diagnostics.Process.GetCurrentProcess();

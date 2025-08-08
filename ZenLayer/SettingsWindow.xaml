@@ -1,53 +1,386 @@
 ﻿<Window x:Class="ZenLayer.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings" Height="500" Width="400"
+        xmlns:ui="clr-namespace:Wpf.Ui.Controls;assembly=Wpf.Ui"
+        Title="Settings" 
+        Height="650" 
+        Width="500"
+        MinHeight="600"
+        MinWidth="480"
+        WindowStartupLocation="CenterScreen"
+        Background="{DynamicResource ApplicationBackgroundBrush}"
         KeyDown="Window_KeyDown">
-    <StackPanel Margin="20" VerticalAlignment="Center">
-        <TextBlock Text="Configure Hotkeys" FontWeight="Bold" FontSize="16" Margin="0,0,0,20"/>
-        
-        <TextBlock Text="Open Overlay:"/>
-        <TextBox Name="OverlayHotkeyBox" 
-                 PreviewKeyDown="HotkeyBox_PreviewKeyDown" 
-                 GotFocus="HotkeyBox_GotFocus"
-                 LostFocus="HotkeyBox_LostFocus"
-                 Tag="Overlay" 
-                 Margin="0,0,0,10" 
-                 IsReadOnly="True"/>
-         
-        <TextBlock Text="Take Screenshot:"/>
-        <TextBox Name="ScreenshotHotkeyBox" 
-                 PreviewKeyDown="HotkeyBox_PreviewKeyDown" 
-                 GotFocus="HotkeyBox_GotFocus"
-                 LostFocus="HotkeyBox_LostFocus"
-                 Tag="Screenshot" 
-                 Margin="0,0,0,10" 
-                 IsReadOnly="True"/>
-        
-        <TextBlock Text="Extract Text:"/>
-        <TextBox Name="ExtractTextHotkeyBox" 
-                 PreviewKeyDown="HotkeyBox_PreviewKeyDown" 
-                 GotFocus="HotkeyBox_GotFocus"
-                 LostFocus="HotkeyBox_LostFocus"
-                 Tag="ExtractText" 
-                 Margin="0,0,0,10" 
-                 IsReadOnly="True"/>
-        
-        <TextBlock Text="Color Picker:"/>
-        <TextBox Name="ColorPickerHotkeyBox" 
-                 PreviewKeyDown="HotkeyBox_PreviewKeyDown" 
-                 GotFocus="HotkeyBox_GotFocus"
-                 LostFocus="HotkeyBox_LostFocus"
-                 Tag="ColorPicker" 
-                 Margin="0,0,0,20" 
-                 IsReadOnly="True"/>
-        
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,10">
-            <Button Name="SaveButton" Content="Save" Click="SaveButton_Click" Width="80" Margin="5"/>
-            <Button Name="ClearButton" Content="Clear All" Click="ClearButton_Click" Width="80" Margin="5"/>
-            <Button Name="ResetToDefaultsButton" Content="Reset to Defaults" Click="ResetToDefaultsButton_Click" Width="120" Margin="5"/>
-        </StackPanel>
-        
-        <TextBlock Name="ErrorText" Foreground="Red" Margin="0,10,0,0" TextWrapping="Wrap"/>
-    </StackPanel>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Enhanced Header -->
+        <Border Grid.Row="0" 
+                Background="{DynamicResource SystemAccentColorSecondaryBrush}" 
+                Padding="24,20">
+            <StackPanel Orientation="Horizontal" 
+                       VerticalAlignment="Center">
+                <ui:SymbolIcon Symbol="Settings24" 
+                              FontSize="28" 
+                              Foreground="White" 
+                              Margin="0,0,16,0"
+                              VerticalAlignment="Center"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Settings" 
+                              Foreground="White" 
+                              FontSize="24" 
+                              FontWeight="Bold"
+                              Margin="0,0,0,2"/>
+                    <TextBlock Text="Configure Hotkeys and Preferences" 
+                              Foreground="White" 
+                              FontSize="12" 
+                              Opacity="0.85"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content -->
+        <ScrollViewer Grid.Row="1" 
+                      VerticalScrollBarVisibility="Auto" 
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="0,24,0,24">
+            <StackPanel MaxWidth="440" 
+                        HorizontalAlignment="Center" >
+
+                <!-- Application Settings Section -->
+                <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                        CornerRadius="10"
+                        Padding="20"
+                        Margin="0,0,0,16">
+                    <Grid MaxWidth="420" HorizontalAlignment="Center">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Border Grid.Column="0"
+                                Background="{DynamicResource SystemAccentColorSecondaryBrush}"
+                                CornerRadius="12"
+                                Width="44"
+                                Height="44"
+                                Margin="0,0,20,0"
+                                VerticalAlignment="Top">
+                            <ui:SymbolIcon Symbol="Settings24" 
+                                           FontSize="22"
+                                           Foreground="White"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                        </Border>
+
+                        <StackPanel Grid.Column="1"
+                                    VerticalAlignment="Top">
+                            <TextBlock Text="Application Settings" 
+                                       Foreground="{DynamicResource TextFillColorPrimaryBrush}"
+                                       FontWeight="SemiBold" 
+                                       FontSize="18" 
+                                       Margin="0,0,0,8"/>
+                            <CheckBox Name="StartupCheckBox" 
+                                      Content="Start automatically with Windows"
+                                      FontSize="15"
+                                      Margin="0,0,0,4"
+                                      Checked="StartupCheckBox_Checked"
+                                      Unchecked="StartupCheckBox_Unchecked"/>
+                            <CheckBox Name="MinimizeCheckBox" 
+                                      Content="Minimize to system tray on close"
+                                      FontSize="15"
+                                      Checked="MinimizeCheckBox_Checked"
+                                      Unchecked="MinimizeCheckBox_Unchecked"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Hotkey Configuration Section -->
+                <ui:CardControl Margin="0,0,0,16" MaxWidth="440" HorizontalAlignment="Center">
+                    <StackPanel>
+                        <Border Padding="24,20">
+                            <StackPanel>
+                                <!-- Section Header -->
+                                <StackPanel Margin="0,0,0,24">
+                                    <TextBlock Text="Hotkey Configuration" 
+                                               FontSize="20" 
+                                               FontWeight="SemiBold"
+                                               Margin="0,0,0,8"/>
+                                    <TextBlock Text="Set custom keyboard shortcuts for quick access to features" 
+                                               FontSize="14"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap"
+                                               LineHeight="20"/>
+                                </StackPanel>
+
+                                <!-- Hotkey Settings -->
+                                <StackPanel>
+                                    <!-- Open Overlay Hotkey -->
+                                    <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                            CornerRadius="8"
+                                            Padding="16,14">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <StackPanel Grid.Row="0" 
+                                                        Orientation="Horizontal" 
+                                                        Margin="0,0,0,12">
+                                                <ui:SymbolIcon Symbol="Layer24" 
+                                                               FontSize="16" 
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                               Margin="0,0,8,0"
+                                                               VerticalAlignment="Center"/>
+                                                <TextBlock Text="Open Overlay" 
+                                                           FontSize="15"
+                                                           FontWeight="Medium"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <TextBox Name="OverlayHotkeyBox" 
+                                                     Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                                     Grid.Row="1"
+                                                     PreviewKeyDown="HotkeyBox_PreviewKeyDown" 
+                                                     GotFocus="HotkeyBox_GotFocus"
+                                                     LostFocus="HotkeyBox_LostFocus"
+                                                     Tag="Overlay" 
+                                                     IsReadOnly="True"
+                                                     FontSize="14"
+                                                     Height="36"
+                                                     Padding="12,8"
+                                                     Foreground="{DynamicResource TextFillColorPrimaryBrush}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Grayscale Filter Hotkey -->
+                                    <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+        CornerRadius="8"
+        Padding="16,14">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <StackPanel Grid.Row="0" 
+                    Orientation="Horizontal" 
+                    Margin="0,0,0,12">
+                                                <ui:SymbolIcon
+                           FontSize="16" 
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                           Margin="0,0,8,0"
+                           VerticalAlignment="Center"/>
+                                                <TextBlock Text="Toggle Grayscale Filter" 
+                                               FontSize="15"
+                                               FontWeight="Medium"
+                                               VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <TextBox Name="GrayscaleHotkeyBox" 
+                                                 Grid.Row="1"
+                                                 PreviewKeyDown="HotkeyBox_PreviewKeyDown" 
+                                                 GotFocus="HotkeyBox_GotFocus"
+                                                 LostFocus="HotkeyBox_LostFocus"
+                                                 Tag="Grayscale" 
+                                                 IsReadOnly="True"
+                                                 FontSize="14"
+                                                 Height="36"
+                                                 Padding="12,8"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Screenshot Hotkey -->
+                                    <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                            CornerRadius="8"
+                                            Padding="16,14">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <StackPanel Grid.Row="0" 
+                                                        Orientation="Horizontal" 
+                                                        Margin="0,0,0,12">
+                                                <ui:SymbolIcon Symbol="Camera24" 
+                                                               FontSize="16" 
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                               Margin="0,0,8,0"
+                                                               VerticalAlignment="Center"/>
+                                                <TextBlock Text="Take Screenshot" 
+                                                           FontSize="15"
+                                                           FontWeight="Medium"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <TextBox Name="ScreenshotHotkeyBox" 
+                                                     Grid.Row="1"
+                                                     PreviewKeyDown="HotkeyBox_PreviewKeyDown" 
+                                                     GotFocus="HotkeyBox_GotFocus"
+                                                     LostFocus="HotkeyBox_LostFocus"
+                                                     Tag="Screenshot" 
+                                                     IsReadOnly="True"
+                                                     FontSize="14"
+                                                     Height="36"
+                                                     Padding="12,8"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Extract Text Hotkey -->
+                                    <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                            CornerRadius="8"
+                                            Padding="16,14">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <StackPanel Grid.Row="0" 
+                                                        Orientation="Horizontal" 
+                                                        Margin="0,0,0,12">
+                                                <ui:SymbolIcon
+                                                    FontSize="16" 
+                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                    Margin="0,0,8,0"
+                                                    VerticalAlignment="Center"/>
+                                                <TextBlock Text="Extract Text" 
+                                                           FontSize="15"
+                                                           FontWeight="Medium"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <TextBox Name="ExtractTextHotkeyBox" 
+                                                     Grid.Row="1"
+                                                     PreviewKeyDown="HotkeyBox_PreviewKeyDown" 
+                                                     GotFocus="HotkeyBox_GotFocus"
+                                                     LostFocus="HotkeyBox_LostFocus"
+                                                     Tag="ExtractText" 
+                                                     IsReadOnly="True"
+                                                     FontSize="14"
+                                                     Height="36"
+                                                     Padding="12,8"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Color Picker Hotkey -->
+                                    <Border Background="{DynamicResource ControlFillColorDefaultBrush}"
+                                            CornerRadius="8"
+                                            Padding="16,14">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto"/>
+                                                <RowDefinition Height="Auto"/>
+                                            </Grid.RowDefinitions>
+
+                                            <StackPanel Grid.Row="0" 
+                                                        Orientation="Horizontal" 
+                                                        Margin="0,0,0,12">
+                                                <ui:SymbolIcon Symbol="ColorBackground24" 
+                                                               FontSize="16" 
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                                               Margin="0,0,8,0"
+                                                               VerticalAlignment="Center"/>
+                                                <TextBlock Text="Color Picker" 
+                                                           FontSize="15"
+                                                           FontWeight="Medium"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <TextBox Name="ColorPickerHotkeyBox" 
+                                                     Grid.Row="1"
+                                                     PreviewKeyDown="HotkeyBox_PreviewKeyDown" 
+                                                     GotFocus="HotkeyBox_GotFocus"
+                                                     LostFocus="HotkeyBox_LostFocus"
+                                                     Tag="ColorPicker" 
+                                                     IsReadOnly="True"
+                                                     FontSize="14"
+                                                     Height="36"
+                                                     Padding="12,8"/>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+                        <Border>
+                            <!-- Action Buttons -->
+                            <StackPanel Margin="0,16,0,0">
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <ui:Button Name="SaveButton" 
+                                               Grid.Column="0"
+                                               Content="Save Hotkeys"
+                                               Click="SaveButton_Click" 
+                                               Height="44"
+                                               FontSize="15"
+                                               FontWeight="Medium"
+                                               HorizontalAlignment="Stretch">
+                                        <ui:Button.Icon>
+                                            <ui:SymbolIcon Symbol="Save24"/>
+                                        </ui:Button.Icon>
+                                    </ui:Button>
+
+                                    <ui:Button Name="ClearButton" 
+                                               Grid.Column="2"
+                                               Content="Clear All"
+                                               Click="ClearButton_Click" 
+                                               Height="44"
+                                               FontSize="15"
+                                               FontWeight="Medium"
+                                               HorizontalAlignment="Stretch"
+                                               Appearance="Secondary">
+                                        <ui:Button.Icon>
+                                            <ui:SymbolIcon Symbol="Delete24"/>
+                                        </ui:Button.Icon>
+                                    </ui:Button>
+                                </Grid>
+
+                                <ui:Button Name="ResetToDefaultsButton" 
+                                           Content="Reset to Defaults"
+                                           Click="ResetToDefaultsButton_Click" 
+                                           Height="40"
+                                           FontSize="14"
+                                           HorizontalAlignment="Stretch">
+                                    <ui:Button.Icon>
+                                        <ui:SymbolIcon Symbol="ArrowReset24"/>
+                                    </ui:Button.Icon>
+                                </ui:Button>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ui:CardControl>
+
+                <!-- Information Section -->
+                <ui:InfoBar Name="HotkeyInfoBar"
+                            Title="Hotkey Usage Tips"
+                            Message="Click on any field above and press your desired key combination. Use modifier keys like Ctrl, Alt, Shift, or Win for global shortcuts."
+                            IsOpen="True"
+                            IsClosable="False"
+                            Severity="Informational"
+                            Margin="0,0,0,8"/>
+
+                <!-- Error Display -->
+                <ui:InfoBar Name="ErrorInfoBar"
+                            Title="Error"
+                            IsOpen="False"
+                            IsClosable="True"
+                            Severity="Error"
+                            Margin="0,0,0,0">
+                    <TextBlock Name="ErrorText" 
+                               TextWrapping="Wrap"
+                               FontSize="14"/>
+                </ui:InfoBar>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
 </Window>

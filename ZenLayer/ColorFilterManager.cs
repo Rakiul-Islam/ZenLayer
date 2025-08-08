@@ -1,7 +1,5 @@
 ﻿using Microsoft.Win32;
-using System;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
 namespace ZenLayer
 {
@@ -144,106 +142,95 @@ namespace ZenLayer
 
         public async Task<bool> SetColorFilterAsync(ColorFilterType filterType)
         {
-            return await Task.Run(() =>
+            try
             {
-                try
+                var currentFilter = GetCurrentFilterType();
+                bool isCurrentlyActive = IsColorFilterActive();
+
+                if (isCurrentlyActive && currentFilter == filterType)
                 {
-                    var currentFilter = GetCurrentFilterType();
-                    bool isCurrentlyActive = IsColorFilterActive();
-
-                    // If the same filter is already active, do nothing
-                    if (isCurrentlyActive && currentFilter == filterType)
-                    {
-                        return true;
-                    }
-
-                    // If a different filter is active, we need to turn it off first
-                    if (isCurrentlyActive && currentFilter != filterType)
-                    {
-                        // Turn off current filter
-                        bool disableSuccess = SendWinCtrlC();
-                        if (!disableSuccess) return false;
-
-                        System.Threading.Thread.Sleep(500); // Give Windows time to process
-                        
-                        // Verify it's turned off
-                        if (IsColorFilterActive()) return false;
-                    }
-
-                    // Set the desired filter type in registry
-                    using var key = Registry.CurrentUser.CreateSubKey(REGISTRY_PATH);
-                    if (key == null) return false;
-
-                    key.SetValue(FILTER_TYPE_VALUE, (int)filterType, RegistryValueKind.DWord);
-                    key.SetValue(ACTIVE_VALUE, 0, RegistryValueKind.DWord); // Set to inactive first
-
-                    System.Threading.Thread.Sleep(100); // Brief pause
-
-                    // Now turn on the filter with the new type
-                    bool enableSuccess = SendWinCtrlC();
-                    if (!enableSuccess) return false;
-
-                    System.Threading.Thread.Sleep(500); // Give Windows time to process
-
-                    // Verify the correct filter is now active
-                    var newCurrentFilter = GetCurrentFilterType();
-                    return IsColorFilterActive() && newCurrentFilter == filterType;
+                    return true;
                 }
-                catch
+
+                if (isCurrentlyActive && currentFilter != filterType)
                 {
-                    return false;
+                    // Turn off current filter
+                    await Task.Delay(150); // <-- Add this delay
+                    bool disableSuccess = SendWinCtrlC();
+                    if (!disableSuccess) return false;
+
+                    await Task.Delay(500);
+
+                    if (IsColorFilterActive()) return false;
                 }
-            });
+
+                using var key = Registry.CurrentUser.CreateSubKey(REGISTRY_PATH);
+                if (key == null) return false;
+
+                key.SetValue(FILTER_TYPE_VALUE, (int)filterType, RegistryValueKind.DWord);
+                key.SetValue(ACTIVE_VALUE, 0, RegistryValueKind.DWord);
+
+                await Task.Delay(500); // <-- Add this delay
+
+                bool enableSuccess = SendWinCtrlC();
+                if (!enableSuccess) return false;
+
+                await Task.Delay(100);
+
+                var newCurrentFilter = GetCurrentFilterType();
+                return IsColorFilterActive() && newCurrentFilter == filterType;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<bool> DisableColorFilterAsync()
         {
-            return await Task.Run(() =>
+            try
             {
-                try
+                if (!IsColorFilterActive()) return true;
+
+                await Task.Delay(500); // <-- Add this delay
+
+                bool success = SendWinCtrlC();
+
+                if (success)
                 {
-                    if (!IsColorFilterActive()) return true;
-
-                    bool success = SendWinCtrlC();
-
-                    if (success)
-                    {
-                        System.Threading.Thread.Sleep(300);
-                        return !IsColorFilterActive();
-                    }
-
-                    return false;
+                    await Task.Delay(300);
+                    return !IsColorFilterActive();
                 }
-                catch
-                {
-                    return false;
-                }
-            });
+
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         public async Task<bool> ToggleGrayscaleAsync()
         {
-            return await Task.Run(() =>
+            // Remove Task.Run() wrapper - execute on calling thread
+            try
             {
-                try
-                {
-                    // Just send the shortcut once and return success
-                    bool success = SendWinCtrlC();
+                // Just send the shortcut once and return success
+                bool success = SendWinCtrlC();
 
-                    if (success)
-                    {
-                        // Wait a moment for Windows to process
-                        System.Threading.Thread.Sleep(300);
-                        return true;
-                    }
-
-                    return false;
-                }
-                catch
+                if (success)
                 {
-                    return false;
+                    // Wait a moment for Windows to process
+                    await Task.Delay(300); // Use Task.Delay instead of Thread.Sleep
+                    return true;
                 }
-            });
+
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         private bool SendWinCtrlC()
@@ -294,6 +281,8 @@ namespace ZenLayer
 
                 // Send the input
                 uint result = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
+
+                System.Diagnostics.Debug.WriteLine($"[DEBUG] SendInput result: {result}, expected: {inputs.Length}");
 
                 return result == inputs.Length;
             }

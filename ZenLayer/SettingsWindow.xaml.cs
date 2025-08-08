@@ -1,6 +1,8 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
@@ -20,6 +22,13 @@ namespace ZenLayer
             InitializeComponent();
             _hotkeyManager = hotkeyManager;
             LoadCurrentHotkeys();
+            LoadSettings(); // <-- Add this line
+        }
+
+        private void LoadSettings()
+        {
+            StartupCheckBox.IsChecked = Properties.Settings.Default.StartWithWindows;
+            MinimizeCheckBox.IsChecked = Properties.Settings.Default.MinimizeToTray;
         }
 
         // Win32 API for global hotkey registration
@@ -73,11 +82,23 @@ namespace ZenLayer
                         ColorPickerHotkeyBox.Text = Properties.Settings.Default.ColorPickerHotkey;
                     }
                 }
+
+                if (!string.IsNullOrEmpty(Properties.Settings.Default.GrayscaleHotkey))
+                {
+                    var parsed = ParseHotkeyString(Properties.Settings.Default.GrayscaleHotkey);
+                    if (parsed.HasValue)
+                    {
+                        _selectedHotkeys["Grayscale"] = parsed.Value;
+                        GrayscaleHotkeyBox.Text = Properties.Settings.Default.GrayscaleHotkey;
+                    }
+                }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading hotkeys: {ex.Message}");
             }
+
+            UpdateShortcutInfoBar();
         }
 
         private (Key key, ModifierKeys modifiers)? ParseHotkeyString(string hotkeyString)
@@ -184,6 +205,8 @@ namespace ZenLayer
 
             // Debug output to confirm what was captured
             System.Diagnostics.Debug.WriteLine($"Hotkey captured for {action}: {hotkeyStr}");
+
+            UpdateShortcutInfoBar();
         }
 
         private bool IsModifierKey(Key key)
@@ -292,8 +315,8 @@ namespace ZenLayer
                 }
             }
 
-            System.Windows.MessageBox.Show("Hotkeys saved successfully!",
-                           "Settings Saved",
+            System.Windows.MessageBox.Show("Settings saved successfully!",
+                           "HotKeys Saved",
                            MessageBoxButton.OK,
                            MessageBoxImage.Information);
 
@@ -310,6 +333,7 @@ namespace ZenLayer
                 Properties.Settings.Default.ScreenshotHotkey = "";
                 Properties.Settings.Default.ExtractTextHotkey = "";
                 Properties.Settings.Default.ColorPickerHotkey = "";
+                Properties.Settings.Default.GrayscaleHotkey = "";
 
                 // Save configured hotkeys to application settings
                 foreach (var kvp in _selectedHotkeys)
@@ -330,6 +354,9 @@ namespace ZenLayer
                         case "ColorPicker":
                             Properties.Settings.Default.ColorPickerHotkey = hotkeyStr;
                             break;
+                        case "Grayscale":
+                            Properties.Settings.Default.GrayscaleHotkey = hotkeyStr;
+                            break;
                     }
                 }
 
@@ -341,6 +368,7 @@ namespace ZenLayer
                 System.Diagnostics.Debug.WriteLine($"Saved ScreenshotHotkey: '{Properties.Settings.Default.ScreenshotHotkey}'");
                 System.Diagnostics.Debug.WriteLine($"Saved ExtractTextHotkey: '{Properties.Settings.Default.ExtractTextHotkey}'");
                 System.Diagnostics.Debug.WriteLine($"Saved ColorPickerHotkey: '{Properties.Settings.Default.ColorPickerHotkey}'");
+                System.Diagnostics.Debug.WriteLine($"Saved GrayscaleHotkey: '{Properties.Settings.Default.GrayscaleHotkey}'");
             }
             catch (Exception ex)
             {
@@ -362,6 +390,7 @@ namespace ZenLayer
                 ScreenshotHotkeyBox.Text = "";
                 ExtractTextHotkeyBox.Text = "";
                 ColorPickerHotkeyBox.Text = "";
+                GrayscaleHotkeyBox.Text = "";
 
                 // Clear selected hotkeys
                 _selectedHotkeys.Clear();
@@ -378,7 +407,7 @@ namespace ZenLayer
 
         private void ResetToDefaultsButton_Click(object sender, RoutedEventArgs e)
         {
-            var result = System.Windows.MessageBox.Show("Reset to default hotkeys?\n\nOverlay: Win + Ctrl + O\nScreenshot: PrintScreen\nExtract Text: Win + Ctrl + T\nColor Picker: Win + Ctrl + C",
+            var result = System.Windows.MessageBox.Show("Reset to default hotkeys?\n\nOverlay: Win + Ctrl + O\nScreenshot: PrintScreen\nExtract Text: Win + Ctrl + T\nColor Picker: Win + Ctrl + C\nGrayscale: Win + Ctrl + G",
                        "Reset to Defaults",
                        MessageBoxButton.YesNo,
                        MessageBoxImage.Question);
@@ -403,6 +432,10 @@ namespace ZenLayer
                 // Default color picker hotkey: Win + Ctrl + C (multi-modifier example)
                 _selectedHotkeys["ColorPicker"] = (Key.C, ModifierKeys.Windows | ModifierKeys.Control);
                 ColorPickerHotkeyBox.Text = "Win + Ctrl + C";
+
+                // Default grayscale hotkey: Win + Ctrl + G (multi-modifier example)
+                _selectedHotkeys["Grayscale"] = (Key.G, ModifierKeys.Windows | ModifierKeys.Control);
+                GrayscaleHotkeyBox.Text = "Win + Ctrl + G";
 
                 ErrorText.Text = "";
 
@@ -437,12 +470,76 @@ namespace ZenLayer
             var box = sender as System.Windows.Controls.TextBox;
             if (box != null)
             {
-                box.Background = System.Windows.Media.Brushes.White;
+                box.SetResourceReference(System.Windows.Controls.Control.BackgroundProperty, "ControlFillColorDefaultBrush");
                 if (string.IsNullOrEmpty(ErrorText.Text) || ErrorText.Text.StartsWith("Press a key"))
                 {
                     ErrorText.Text = "";
                 }
             }
+        }
+
+        private void SetStartup(bool enabled)
+        {
+            try
+            {
+                const string appName = "ZenLayer";
+                using var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
+
+                if (enabled)
+                {
+                    string exePath = Assembly.GetExecutingAssembly().Location.Replace(".dll", ".exe");
+                    key?.SetValue(appName, $"\"{exePath}\"");
+                }
+                else
+                {
+                    key?.DeleteValue(appName, false);
+                }
+
+                Properties.Settings.Default.StartWithWindows = enabled;
+                Properties.Settings.Default.Save();
+            }
+            catch (Exception ex)
+            {
+                System.Windows.MessageBox.Show($"Failed to update startup settings: {ex.Message}", "Error");
+            }
+        }
+
+        private void StartupCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            SetStartup(true);
+        }
+
+        private void StartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            SetStartup(false);
+        }
+
+        private void MinimizeCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            Properties.Settings.Default.MinimizeToTray = true;
+            Properties.Settings.Default.Save();
+        }
+
+        private void MinimizeCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            Properties.Settings.Default.MinimizeToTray = false;
+            Properties.Settings.Default.Save();
+        }
+
+        private void UpdateShortcutInfoBar()
+        {
+            var shortcuts = new List<string>();
+
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.OverlayHotkey))
+                shortcuts.Add($"Overlay: {Properties.Settings.Default.OverlayHotkey}");
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.ScreenshotHotkey))
+                shortcuts.Add($"Screenshot: {Properties.Settings.Default.ScreenshotHotkey}");
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.ExtractTextHotkey))
+                shortcuts.Add($"Extract Text: {Properties.Settings.Default.ExtractTextHotkey}");
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.ColorPickerHotkey))
+                shortcuts.Add($"Color Picker: {Properties.Settings.Default.ColorPickerHotkey}");
+            if (!string.IsNullOrEmpty(Properties.Settings.Default.GrayscaleHotkey))
+                shortcuts.Add($"Grayscale: {Properties.Settings.Default.GrayscaleHotkey}");
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
@@ -455,7 +552,8 @@ namespace ZenLayer
                 ["Overlay"] = Properties.Settings.Default.OverlayHotkey ?? "",
                 ["Screenshot"] = Properties.Settings.Default.ScreenshotHotkey ?? "",
                 ["ExtractText"] = Properties.Settings.Default.ExtractTextHotkey ?? "",
-                ["ColorPicker"] = Properties.Settings.Default.ColorPickerHotkey ?? ""
+                ["ColorPicker"] = Properties.Settings.Default.ColorPickerHotkey ?? "",
+                ["Grayscale"] = Properties.Settings.Default.GrayscaleHotkey ?? ""
             };
 
             foreach (var kvp in _selectedHotkeys)
@@ -506,6 +604,11 @@ namespace ZenLayer
             }
 
             base.OnClosing(e);
+        }
+
+        private void OverlayHotkeyBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
+        {
+
         }
     }
 }
