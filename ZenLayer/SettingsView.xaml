@@ -1,46 +1,45 @@
-﻿<Window x:Class="ZenLayer.SettingsWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:ui="clr-namespace:Wpf.Ui.Controls;assembly=Wpf.Ui"
-        Title="Settings" 
-        Height="650" 
-        Width="500"
-        MinHeight="600"
-        MinWidth="480"
-        WindowStartupLocation="CenterScreen"
-        Background="{DynamicResource ApplicationBackgroundBrush}"
-        KeyDown="Window_KeyDown">
-
+﻿<UserControl x:Class="ZenLayer.SettingsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:Wpf.Ui.Controls;assembly=Wpf.Ui"
+             Background="{DynamicResource ApplicationBackgroundBrush}">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Enhanced Header -->
-        <Border Grid.Row="0" 
-                Background="{DynamicResource SystemAccentColorSecondaryBrush}" 
-                Padding="24,20">
-            <StackPanel Orientation="Horizontal" 
-                       VerticalAlignment="Center">
-                <ui:SymbolIcon Symbol="Settings24" 
-                              FontSize="28" 
-                              Foreground="White" 
-                              Margin="0,0,16,0"
-                              VerticalAlignment="Center"/>
-                <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="Settings" 
-                              Foreground="White" 
-                              FontSize="24" 
-                              FontWeight="Bold"
-                              Margin="0,0,0,2"/>
-                    <TextBlock Text="Configure Hotkeys and Preferences" 
-                              Foreground="White" 
-                              FontSize="12" 
-                              Opacity="0.85"/>
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{DynamicResource SystemAccentColorSecondaryBrush}" Padding="24,20">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Back Button - Left Side -->
+                <ui:Button Grid.Column="0" 
+                          Click="BackButton_Click"
+                          Appearance="Secondary"
+                          Background="Transparent"
+                          BorderThickness="0"
+                          Padding="8"
+                          Margin="0,0,16,0"
+                          VerticalAlignment="Center"
+                          ToolTip="Back">
+                    <ui:SymbolIcon Symbol="ArrowLeft24" 
+                                   FontSize="20" 
+                                   Foreground="White"/>
+                </ui:Button>
+
+                <!-- Title Section -->
+                <StackPanel Grid.Column="1" 
+                           Orientation="Horizontal" 
+                           VerticalAlignment="Center">
+                    <ui:SymbolIcon Symbol="Settings24" FontSize="28" Foreground="White" Margin="0,0,16,0"/>
+                    <TextBlock Text="Settings" Foreground="White" FontSize="24" FontWeight="Bold"/>
                 </StackPanel>
-            </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Main Content -->
@@ -383,4 +382,4 @@
             </StackPanel>
         </ScrollViewer>
     </Grid>
-</Window>
+</UserControl>

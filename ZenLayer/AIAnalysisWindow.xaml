@@ -84,14 +84,13 @@
                 BorderThickness="0,0,1,0" 
                 Background="#FAFBFC"
                 Padding="15">
-            <StackPanel>
-                <TextBlock Text="Screenshot" 
-                          Style="{StaticResource SectionHeaderStyle}"
-                          HorizontalAlignment="Center"/>
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                         HorizontalScrollBarVisibility="Disabled">
+                <StackPanel>
+                    <TextBlock Text="Screenshot" 
+                              Style="{StaticResource SectionHeaderStyle}"
+                              HorizontalAlignment="Center"/>
 
-                <ScrollViewer VerticalScrollBarVisibility="Auto"
-                             HorizontalScrollBarVisibility="Auto"
-                             MaxHeight="450">
                     <Image Name="ScreenshotImage"
                            MaxWidth="300"
                            MaxHeight="400"
@@ -105,46 +104,46 @@
                                             Opacity="0.3"/>
                         </Image.Effect>
                     </Image>
-                </ScrollViewer>
 
-                <!-- Image Info -->
-                <Border Background="White" 
-                        BorderBrush="#E1E8ED" 
-                        BorderThickness="1" 
-                        CornerRadius="4" 
-                        Padding="10" 
-                        Margin="0,10,0,0">
-                    <TextBlock Name="ImageInfoText"
-                              Text="Image ready for AI analysis"
-                              FontSize="10"
-                              Foreground="#7F8C8D"
-                              TextWrapping="Wrap"
-                              HorizontalAlignment="Center"/>
-                </Border>
+                    <!-- Image Info -->
+                    <Border Background="White" 
+                            BorderBrush="#E1E8ED" 
+                            BorderThickness="1" 
+                            CornerRadius="4" 
+                            Padding="10" 
+                            Margin="0,10,0,0">
+                        <TextBlock Name="ImageInfoText"
+                                  Text="Image ready for AI analysis"
+                                  FontSize="10"
+                                  Foreground="#7F8C8D"
+                                  TextWrapping="Wrap"
+                                  HorizontalAlignment="Center"/>
+                    </Border>
 
-                <!-- Input Controls (moved from right) -->
-                <TextBlock Text="Quick Prompts:" 
-                           Style="{StaticResource SubHeaderStyle}"
-                           Margin="0,20,0,0"/>
-                <WrapPanel Name="QuickPromptsPanel" Margin="0,0,0,15"/>
+                    <!-- Input Controls (moved from right) -->
+                    <TextBlock Text="Quick Prompts:" 
+                               Style="{StaticResource SubHeaderStyle}"
+                               Margin="0,20,0,0"/>
+                    <WrapPanel Name="QuickPromptsPanel" Margin="0,0,0,15"/>
 
-                <TextBlock Text="Prompt:" 
-                           Style="{StaticResource SubHeaderStyle}"/>
-                <TextBox Name="PromptTextBox"
-                         Height="80"
-                         TextWrapping="Wrap"
-                         AcceptsReturn="True"
-                         VerticalScrollBarVisibility="Auto"
-                         Text="Describe what you see in this image and provide any relevant insights."
-                         Margin="0,0,0,10"
-                         Padding="8"
-                         BorderBrush="#BDC3C7"
-                         Background="White"/>
-                <Button Name="AnalyzeButton"
-                        Content="🚀 Analyze with AI"
-                        Style="{StaticResource PrimaryButtonStyle}"
-                        HorizontalAlignment="Left"/>
-            </StackPanel>
+                    <TextBlock Text="Prompt:" 
+                               Style="{StaticResource SubHeaderStyle}"/>
+                    <TextBox Name="PromptTextBox"
+                             Height="80"
+                             TextWrapping="Wrap"
+                             AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Auto"
+                             Text="Describe what you see in this image and provide any relevant insights."
+                             Margin="0,0,0,10"
+                             Padding="8"
+                             BorderBrush="#BDC3C7"
+                             Background="White"/>
+                    <Button Name="AnalyzeButton"
+                            Content="🚀 Analyze with AI"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            HorizontalAlignment="Left"/>
+                </StackPanel>
+            </ScrollViewer>
         </Border>
 
         <!-- GridSplitter for resizing -->

@@ -1,28 +1,33 @@
 ﻿using Microsoft.Win32;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
+using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 
 namespace ZenLayer
 {
-    public partial class SettingsWindow : Window
+    public partial class SettingsView : System.Windows.Controls.UserControl
     {
         // Store selected hotkeys
         private Dictionary<string, (Key key, ModifierKeys modifiers)> _selectedHotkeys = new();
         private GlobalHotkeyManager? _hotkeyManager;
+        private MainWindow _mainWindow;
 
         public Dictionary<string, (Key key, ModifierKeys modifiers)> SelectedHotkeys => _selectedHotkeys;
 
-        public SettingsWindow(GlobalHotkeyManager? hotkeyManager = null)
+        public SettingsView(MainWindow mainWindow, GlobalHotkeyManager? hotkeyManager = null)
         {
             InitializeComponent();
+            _mainWindow = mainWindow;
             _hotkeyManager = hotkeyManager;
             LoadCurrentHotkeys();
-            LoadSettings(); // <-- Add this line
+            LoadSettings();
+        }
+
+        private void BackButton_Click(object sender, RoutedEventArgs e)
+        {
+            _mainWindow.NavigateToDashboard();
         }
 
         private void LoadSettings()
@@ -72,7 +77,6 @@ namespace ZenLayer
                     }
                 }
 
-                // Add ColorPicker hotkey loading
                 if (!string.IsNullOrEmpty(Properties.Settings.Default.ColorPickerHotkey))
                 {
                     var parsed = ParseHotkeyString(Properties.Settings.Default.ColorPickerHotkey);
@@ -148,24 +152,22 @@ namespace ZenLayer
             }
         }
 
-        private void HotkeyBox_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+        private void HotkeyBox_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             e.Handled = true; // Prevent default behavior
 
             var box = sender as System.Windows.Controls.TextBox;
             string action = box?.Tag as string ?? "";
 
-            // Capture all current modifiers - this is key for multi-modifier support
+            // Capture all current modifiers
             ModifierKeys modifiers = Keyboard.Modifiers;
             Key key = (e.Key == Key.System ? e.SystemKey : e.Key);
 
-            // Debug output to help troubleshoot
             System.Diagnostics.Debug.WriteLine($"Key pressed: {key}, Modifiers: {modifiers}");
 
             // Ignore modifier-only keys
             if (IsModifierKey(key))
             {
-                // Update the text box to show current modifiers being held
                 if (modifiers != ModifierKeys.None)
                 {
                     box.Text = FormatModifiersOnly(modifiers) + " + ...";
@@ -173,7 +175,7 @@ namespace ZenLayer
                 return;
             }
 
-            // Handle special keys that should be allowed without modifiers for certain actions
+            // Handle special keys
             bool isSpecialKey = key == Key.PrintScreen || key == Key.F1 || key == Key.F2 || key == Key.F3 ||
                                key == Key.F4 || key == Key.F5 || key == Key.F6 || key == Key.F7 || key == Key.F8 ||
                                key == Key.F9 || key == Key.F10 || key == Key.F11 || key == Key.F12;
@@ -203,9 +205,7 @@ namespace ZenLayer
             _selectedHotkeys[action] = (key, modifiers);
             ErrorText.Text = "";
 
-            // Debug output to confirm what was captured
             System.Diagnostics.Debug.WriteLine($"Hotkey captured for {action}: {hotkeyStr}");
-
             UpdateShortcutInfoBar();
         }
 
@@ -233,7 +233,6 @@ namespace ZenLayer
         {
             var parts = new List<string>();
 
-            // Add modifiers in a consistent order
             if (modifiers.HasFlag(ModifierKeys.Control)) parts.Add("Ctrl");
             if (modifiers.HasFlag(ModifierKeys.Alt)) parts.Add("Alt");
             if (modifiers.HasFlag(ModifierKeys.Shift)) parts.Add("Shift");
@@ -246,7 +245,11 @@ namespace ZenLayer
 
         private bool IsHotkeyAvailable(ModifierKeys modifiers, Key key)
         {
-            var windowInterop = new System.Windows.Interop.WindowInteropHelper(this);
+            // Get the parent window instead of using 'this'
+            var parentWindow = Window.GetWindow(this);
+            if (parentWindow == null) return false;
+
+            var windowInterop = new System.Windows.Interop.WindowInteropHelper(parentWindow);
             int testId = 0xBEEF;
             uint mod = ConvertModifiers(modifiers);
             uint vk = (uint)KeyInterop.VirtualKeyFromKey(key);
@@ -291,10 +294,8 @@ namespace ZenLayer
                                        string.Join("\n", conflictingHotkeys) +
                                        "\n\nPlease choose different hotkeys for these actions.";
 
-                System.Windows.MessageBox.Show(conflictMessage,
-                               "Hotkey Conflicts Detected",
-                               MessageBoxButton.OK,
-                               MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show(conflictMessage, "Hotkey Conflicts Detected",
+                               MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
@@ -308,20 +309,15 @@ namespace ZenLayer
                 if (!success)
                 {
                     System.Windows.MessageBox.Show("Hotkeys saved, but failed to register some hotkeys. They may be in use by other applications.",
-                                   "Registration Warning",
-                                   MessageBoxButton.OK,
-                                   MessageBoxImage.Warning);
-                    // Don't return here - still allow the save to complete
+                                   "Registration Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
 
-            System.Windows.MessageBox.Show("Settings saved successfully!",
-                           "HotKeys Saved",
-                           MessageBoxButton.OK,
-                           MessageBoxImage.Information);
+            System.Windows.MessageBox.Show("Settings saved successfully!", "Settings Saved",
+                           MessageBoxButton.OK, MessageBoxImage.Information);
 
-            this.DialogResult = true;
-            this.Close();
+            // Reload hotkeys in main window and navigate back
+            _mainWindow.ReloadHotkeys();
         }
 
         private void SaveHotkeysToSettings()
@@ -363,7 +359,6 @@ namespace ZenLayer
                 // Save settings to disk
                 Properties.Settings.Default.Save();
 
-                // Debug output to verify settings are being saved
                 System.Diagnostics.Debug.WriteLine($"Saved OverlayHotkey: '{Properties.Settings.Default.OverlayHotkey}'");
                 System.Diagnostics.Debug.WriteLine($"Saved ScreenshotHotkey: '{Properties.Settings.Default.ScreenshotHotkey}'");
                 System.Diagnostics.Debug.WriteLine($"Saved ExtractTextHotkey: '{Properties.Settings.Default.ExtractTextHotkey}'");
@@ -372,16 +367,15 @@ namespace ZenLayer
             }
             catch (Exception ex)
             {
-                System.Windows.MessageBox.Show($"Error saving settings: {ex.Message}", "Save Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                System.Windows.MessageBox.Show($"Error saving settings: {ex.Message}", "Save Error",
+                               MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void ClearButton_Click(object sender, RoutedEventArgs e)
         {
             var result = System.Windows.MessageBox.Show("Are you sure you want to clear all hotkey settings?",
-                                   "Clear All Hotkeys",
-                                   MessageBoxButton.YesNo,
-                                   MessageBoxImage.Question);
+                                   "Clear All Hotkeys", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
             {
@@ -398,60 +392,40 @@ namespace ZenLayer
                 // Clear error text
                 ErrorText.Text = "";
 
-                System.Windows.MessageBox.Show("All hotkeys have been cleared.",
-                       "Hotkeys Cleared",
-                       MessageBoxButton.OK,
-                       MessageBoxImage.Information);
+                System.Windows.MessageBox.Show("All hotkeys have been cleared.", "Hotkeys Cleared",
+                               MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
         private void ResetToDefaultsButton_Click(object sender, RoutedEventArgs e)
         {
             var result = System.Windows.MessageBox.Show("Reset to default hotkeys?\n\nOverlay: Win + Ctrl + O\nScreenshot: PrintScreen\nExtract Text: Win + Ctrl + T\nColor Picker: Win + Ctrl + C\nGrayscale: Win + Ctrl + G",
-                       "Reset to Defaults",
-                       MessageBoxButton.YesNo,
-                       MessageBoxImage.Question);
+                       "Reset to Defaults", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
             {
                 // Set default hotkeys
                 _selectedHotkeys.Clear();
 
-                // Default overlay hotkey: Win + Ctrl + O (multi-modifier example)
                 _selectedHotkeys["Overlay"] = (Key.O, ModifierKeys.Windows | ModifierKeys.Control);
                 OverlayHotkeyBox.Text = "Win + Ctrl + O";
 
-                // Default screenshot hotkey: PrintScreen
                 _selectedHotkeys["Screenshot"] = (Key.PrintScreen, ModifierKeys.None);
                 ScreenshotHotkeyBox.Text = "PrintScreen";
 
-                // Default extract text hotkey: Win + Ctrl + T (multi-modifier example)
                 _selectedHotkeys["ExtractText"] = (Key.T, ModifierKeys.Windows | ModifierKeys.Control);
                 ExtractTextHotkeyBox.Text = "Win + Ctrl + T";
 
-                // Default color picker hotkey: Win + Ctrl + C (multi-modifier example)
                 _selectedHotkeys["ColorPicker"] = (Key.C, ModifierKeys.Windows | ModifierKeys.Control);
                 ColorPickerHotkeyBox.Text = "Win + Ctrl + C";
 
-                // Default grayscale hotkey: Win + Ctrl + G (multi-modifier example)
                 _selectedHotkeys["Grayscale"] = (Key.G, ModifierKeys.Windows | ModifierKeys.Control);
                 GrayscaleHotkeyBox.Text = "Win + Ctrl + G";
 
                 ErrorText.Text = "";
 
-                System.Windows.MessageBox.Show("Default hotkeys have been set.",
-                               "Defaults Applied",
-                               MessageBoxButton.OK,
-                               MessageBoxImage.Information);
-            }
-        }
-
-        private void Window_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
-        {
-            // Allow ESC to close the window
-            if (e.Key == Key.Escape)
-            {
-                this.Close();
+                System.Windows.MessageBox.Show("Default hotkeys have been set.", "Defaults Applied",
+                               MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
@@ -542,11 +516,14 @@ namespace ZenLayer
                 shortcuts.Add($"Grayscale: {Properties.Settings.Default.GrayscaleHotkey}");
         }
 
-        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+        private void OverlayHotkeyBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
         {
-            // Check if there are unsaved changes
-            bool hasUnsavedChanges = false;
+            // Keep this method if it's referenced in XAML
+        }
 
+        // Public method to check for unsaved changes (called by MainWindow before navigation)
+        public bool HasUnsavedChanges()
+        {
             var currentSettings = new Dictionary<string, string>
             {
                 ["Overlay"] = Properties.Settings.Default.OverlayHotkey ?? "",
@@ -561,54 +538,20 @@ namespace ZenLayer
                 string currentHotkey = FormatHotkey(kvp.Value.modifiers, kvp.Value.key);
                 if (currentSettings.ContainsKey(kvp.Key) && currentSettings[kvp.Key] != currentHotkey)
                 {
-                    hasUnsavedChanges = true;
-                    break;
+                    return true;
                 }
             }
 
-            // Also check if any settings were cleared
-            if (!hasUnsavedChanges)
+            // Check if any settings were cleared
+            foreach (var setting in currentSettings)
             {
-                foreach (var setting in currentSettings)
+                if (!string.IsNullOrEmpty(setting.Value) && !_selectedHotkeys.ContainsKey(setting.Key))
                 {
-                    if (!string.IsNullOrEmpty(setting.Value) && !_selectedHotkeys.ContainsKey(setting.Key))
-                    {
-                        hasUnsavedChanges = true;
-                        break;
-                    }
+                    return true;
                 }
             }
 
-            if (hasUnsavedChanges)
-            {
-                var result = System.Windows.MessageBox.Show("You have unsaved changes. Do you want to save them before closing?",
-                                           "Unsaved Changes",
-                                           MessageBoxButton.YesNoCancel,
-                                           MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    // Try to save
-                    SaveButton_Click(null, null);
-                    if (this.DialogResult != true)
-                    {
-                        // Save failed, don't close
-                        e.Cancel = true;
-                    }
-                }
-                else if (result == MessageBoxResult.Cancel)
-                {
-                    e.Cancel = true;
-                }
-                // If No, just close without saving
-            }
-
-            base.OnClosing(e);
-        }
-
-        private void OverlayHotkeyBox_TextChanged(object sender, System.Windows.Controls.TextChangedEventArgs e)
-        {
-
+            return false;
         }
     }
 }
